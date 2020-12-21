@@ -1,0 +1,84 @@
+SYMBOL_TABLE(global 101 31
+				symbol_compare_string
+				symbol_hash_string
+				symbol_print_string
+				[* char* id; *]
+			)
+
+USES("stdlib.h")
+USES("ma_aux.h")
+USES("tbl_aux.h")
+
+S ::= [* fp = fopen("eac.tac", "w"); 
+	   	 ft = fopen("eac.tbl", "w"); *] 
+	  { D ';' }  
+	  [* fclose(fp); 
+	   	 fclose(ft); *].
+	   	 
+D ::= 'int' ID:name (* declaration *)
+	  [* if (symbol_lookup_key(global, &name, NULL)) {
+	  	 	text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+	  	 } else {
+	  	 	symbol_insert_key(global, &name, sizeof(char*), sizeof(global_data));
+	  	 } *] 
+	  [ '=' E:val 
+	  	[*  fprintf(fp, "\t%s = %s\n", name, val);
+	  	*] 
+	  ] 
+	  [* fprintf(ft, "%s\n", name); // print new symbol table entry to file *]
+	| ID:name (* assignment *)
+	  [* if (!symbol_lookup_key(global, &name, NULL)) {
+	  	     text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+	  	 }
+	  *]  
+	  [ '=' E:val 
+	  	[* fprintf(fp, "\t%s = %s\n", name, val);
+	  	*]
+	  ]
+	| C. 
+	
+(* provisional if statement implementation *)
+
+C ::= 'if' '(' E:val ')' 
+	  [* char* end = new_lab();
+	  	 char* lab = new_lab();
+	  	 fprintf(fp, "\tif %s == 0 goto %s\n", val, lab);
+	  *]
+	  E 
+	  [* fprintf(fp, "\tgoto %s\n", end);
+	  	 fprintf(fp, "%s\n", lab);
+	  *]
+	  { 'else' 'if' '(' E:val ')'
+	  	[* lab = new_lab();
+	  	   fprintf(fp, "\tif %s == 0 goto %s\n", val, lab);
+	  	*]
+	  	E
+	  	[* fprintf(fp, "\tgoto %s\n", end);
+	  	   fprintf(fp, "%s\n", lab);
+	    *]
+	  }
+	  [ 'otherwise' E ]
+	  [* fprintf(fp, "%s\n", end); *].
+				 
+E:char* ::= P:val1 
+		   [* result = new_temp();
+		   	  fprintf(fp, "\t%s = %s\n", result, val1);
+		   	  val1 = result;
+		   *] 
+		   { '+' P:val2 (* addition *)
+		     [* result = new_temp();
+		     	fprintf(fp, "\t%s = %s + %s\n", result, val1, val2);
+		      	val1 = result;
+		     *]
+		   }.
+
+P:char* ::= INTEGER:val (* integer literals *)
+		    [* result = (char*) mem_malloc(12);
+		       sprintf(result, "%li", val); *]
+		  | ID:name (* variables *)
+		    [* if (!symbol_lookup_key(global, &name, NULL)) {
+		       	  text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+		       } else {
+		       	 result = name; 
+		       }
+		    *].

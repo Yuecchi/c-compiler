@@ -1,0 +1,44 @@
+SYMBOL_TABLE(global 101 31
+				symbol_compare_string
+				symbol_hash_string
+				symbol_print_string
+				[* char* id; integer i; *]
+			)
+
+TRANSLATION_UNIT ::= { DECLARATION | STATEMENT } .
+DECLARATION:int  ::= TYPE_SPECIFIER ID:name [ '=' EXPRESSION:result ] ';'
+					 [* if (symbol_lookup_key(global, &name, NULL)) 
+							text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+						else {
+						   	global_cast(symbol_insert_key(global, &name, sizeof(char*), sizeof(global_data)))->i = result;
+							printf("%d\n", result);
+						}
+					 *] .                     
+TYPE_SPECIFIER   ::= 'int' .
+STATEMENT:int    ::= ID:name  
+					 [* if (!symbol_lookup_key(global, &name, NULL)) 
+					 		text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+					 	else
+					 		result = global_cast(symbol_lookup_key(global, &name, NULL))->i;
+					 *] 
+					 [ '=' EXPRESSION:result [* global_cast(symbol_lookup_key(global, &name, NULL))->i = result; *] ] 
+					 [* printf("%d\n", result); *] ';' .
+EXPRESSION:int   ::= BOOL:result . 
+BOOL:int         ::= SUM:result 
+					 { '==' SUM:val [* result = result == val; *] |
+					   '!='	SUM:val [* result = result != val; *] |
+					   '>='	SUM:val [* result = result >= val; *] |
+					   '<='	SUM:val [* result = result <= val; *] |
+					   '>'	SUM:val [* result = result >  val; *] |
+					   '<'	SUM:val [* result = result <  val; *] } .
+SUM:int          ::= PROD:result 
+					 { '+' PROD:val [* result += val; *] | 
+					   '-' PROD:val [* result -= val; *] } .
+PROD:int         ::= PRIMITIVE:result 
+                     { '*' PRIMITIVE:val [* result *= val; *] } .
+PRIMITIVE:int    ::= INTEGER:result | 
+					 ID:name [* if (!symbol_lookup_key(global, &name, NULL))
+					 				text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+					 			else
+					 				result = global_cast(symbol_lookup_key(global, &name, NULL))->i;
+					 		 *] .
