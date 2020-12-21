@@ -27,6 +27,7 @@ CHANGES
       - declaration of integer variables
       - assignment to integer variables
       - addition
+      
 ISSUES
 
   - Grammar needs cleaning up.
