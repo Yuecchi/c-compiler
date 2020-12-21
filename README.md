@@ -42,6 +42,7 @@ CHANGES
     - subtraction
     - printing integers
     - while loops
+    - break statements
       
 ISSUES
 
@@ -61,6 +62,8 @@ ISSUES
      
      The issue does not occur here due to the closing brace preceeding 
      else (thus eliminating the FIRST / FOLLOW conflict).
+  - Grammar needs cleaning up again.
+  - Review break statement implementation.
      
   
     
