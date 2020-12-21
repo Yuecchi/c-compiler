@@ -39,7 +39,9 @@ CHANGES
   - Added the following functionality to eac and cgen:
     - if / else if / else conditional statements
     - subtraction
-    
+    - printing integers
+    - while loops
+      
 ISSUES
 
   - cgen sourcecode needs heavy refactoring
