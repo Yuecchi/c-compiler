@@ -45,8 +45,8 @@ ISSUES
   - cgen sourcecode needs heavy refactoring
   - Conditional statements can not be inlined, eg:
       
-      if (0) x = 3;
-      else x = 5;
+        if (0) x = 3;
+        else x = 5;
       
      This is due to a FIRST / FOLLOW conflict which I believe
      can not be resolved due to the limitations of LL1 parsers.
