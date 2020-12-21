@@ -12,6 +12,8 @@ CHANGE LOG
 
 20/12/2020
 
+CHANGES
+
   - Created new grammar 'eac' which now emits three address code.
     Currently functionality of eac includes:
     - Declaration of integer variables.
@@ -25,4 +27,41 @@ CHANGE LOG
       - declaration of integer variables
       - assignment to integer variables
       - addition
+ISSUES
+
+  - Grammar needs cleaning up.
+        
+21/12/2020
+
+CHANGES
+
+  - Refactored the grammar to imrpvoe readability and modularity.
+  - Added the following functionality to eac and cgen:
+    - if / else if / else conditional statements
+    - subtraction
+    
+ISSUES
+
+  - cgen sourcecode needs heavy refactoring
+  - Conditional statements can not be inlined, eg:
+      
+      if (0) x = 3;
+      else x = 5;
+      
+     This is due to a FIRST / FOLLOW conflict which I believe
+     can not be resolved due to the limitations of LL1 parsers.
+     Therefore, it is likely conditional staements will only be
+     followed by compound statements, eg:
+     
+        if (0) { x = 3; }
+        else { x = 5; }
+     
+     The issue does not occur here due to the closing brace preceeding 
+     else (thus eliminating the FIRST / FOLLOW conflict).
+     
+  
+    
+    
+ 
+ 
     
