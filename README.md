@@ -36,7 +36,9 @@ ISSUES
 
 CHANGES
 
-  - Refactored the grammar to imrpvoe readability and modularity.
+  - Refactored the grammar to improve readability and modularity.
+  - Modified ma_aux. Now includes a stack which holds labels. This
+    has been added to facilitate the new break statement implementation
   - Added the following functionality to eac and cgen:
     - if / else if / else conditional statements
     - subtraction
@@ -46,7 +48,9 @@ CHANGES
       
 ISSUES
 
-  - cgen sourcecode needs heavy refactoring
+  - cgen sourcecode needs heavy refactoring,
+  - Grammar needs cleaning up again.
+  - Review break statement implementation.
   - Conditional statements can not be inlined, eg:
       
         if (0) x = 3;
@@ -62,10 +66,24 @@ ISSUES
      
      The issue does not occur here due to the closing brace preceeding 
      else (thus eliminating the FIRST / FOLLOW conflict).
-  - Grammar needs cleaning up again.
-  - Review break statement implementation.
+
      
-  
+23/12/2020
+
+
+CHANGES
+
+  - Modified the label stack in ma_aux so it now holds two labels.
+    This change has been made to facilitate the implementation of
+    both the break and continue statements.
+  - Added 'peek' functions to the label stack. this was done to fix
+    in order to fix a bug in the grammar where calling break more
+    then once inside a loop would cause all subsequent breaks to
+    jump to a null address.
+      
+ISSUES
+
+  - No new issues currently.
     
     
  
