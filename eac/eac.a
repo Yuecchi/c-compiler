@@ -1,36 +1,39 @@
 	.data
 x:	.word 0x0
 y:	.word 0x0
-z:	.word 0x0
 	.text
 main:
-	li $t0, 2
+	li $t0, 9
+	la $t1, x
+	sw $t0, ($t1)
+	li $t0, 5
 	la $t1, y
 	sw $t0, ($t1)
-	li $t0, 3
-	addi $t0, $t0, 4
-	la $t1, z
-	sw $t0, ($t1)
-	la $t1, y
+	la $t1, x
 	lw $t0, ($t1)
-	la $t2, z
+_L1_:
+	beqz $t0, _L2_
+	la $t1, x
+	lw $t0, ($t1)
+	la $t2, y
 	lw $t1, ($t2)
-	add $t0, $t0, $t1
+	sub $t0, $t0, $t1
+	beqz $t0, _L4_
+	la $t1, x
+	lw $t0, ($t1)
+	move $a0, $t0
+	li $v0, 1
+	syscall
+	j _L3_
+_L4_:
+	j _L2_
+_L3_:
+	la $t1, x
+	lw $t0, ($t1)
+	addi $t0, $t0, -1
 	la $t1, x
 	sw $t0, ($t1)
-	
-	li $v0, 1
-	la $t1, x
-	lw $a0, ($t1)
-	syscall
-
-        la $t1, y
-        lw $a0, ($t1)
-        syscall
-        
-	la $t1, z
-        lw $a0, ($t1)
-        syscall
-
+	j _L1_
+_L2_:
 	li $v0, 10
 	syscall

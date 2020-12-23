@@ -9,76 +9,110 @@ USES("stdlib.h")
 USES("ma_aux.h")
 USES("tbl_aux.h")
 
-S ::= [* fp = fopen("eac.tac", "w"); 
-	   	 ft = fopen("eac.tbl", "w"); *] 
-	  { D ';' }  
-	  [* fclose(fp); 
-	   	 fclose(ft); *].
+TRNS_UNIT ::= [* fp = fopen("eac.tac", "w"); 
+	   	 		 ft = fopen("eac.tbl", "w"); 
+	   	 		 loop_stack = create_label_stack();
+	   	 	  *] 
+	  		  { DECL | STMT }  
+	  		  [* fclose(fp); 
+	   	 		 fclose(ft);
+	   	 		 free(loop_stack); 
+	   	 	  *].
 	   	 
-D ::= 'int' ID:name (* declaration *)
-	  [* if (symbol_lookup_key(global, &name, NULL)) {
-	  	 	text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
-	  	 } else {
-	  	 	symbol_insert_key(global, &name, sizeof(char*), sizeof(global_data));
-	  	 } *] 
-	  [ '=' E:val 
-	  	[*  fprintf(fp, "\t%s = %s\n", name, val);
-	  	*] 
-	  ] 
-	  [* fprintf(ft, "%s\n", name); // print new symbol table entry to file *]
-	| ID:name (* assignment *)
-	  [* if (!symbol_lookup_key(global, &name, NULL)) {
-	  	     text_message(TEXT_ERROR, "'%s' undeclared\n", name);
-	  	 }
-	  *]  
-	  [ '=' E:val 
-	  	[* fprintf(fp, "\t%s = %s\n", name, val);
-	  	*]
-	  ]
-	| C. 
-	
-(* provisional if statement implementation *)
+DECL ::= 'int' ID:name (* variable declaration *)
+	     [* if (symbol_lookup_key(global, &name, NULL)) {
+	  	 	    text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+	  	 	} else {
+	  	 		symbol_insert_key(global, &name, sizeof(char*), sizeof(global_data));
+	  	 	} 
+	  	 *] 
+	  	 [ '=' EXPR:val [* fprintf(fp, "\t%s = %s\n", name, val); *] ] 
+	  	 [* fprintf(ft, "%s\n", name); // print new symbol table entry to file *] 
+	  	 ';'.
+	  			
+STMT ::= ( ASSIGN | PRINT | BREAK ) ';' | COND | LOOP.
 
-C ::= 'if' '(' E:val ')' 
-	  [* char* end = new_lab();
-	  	 char* lab = new_lab();
-	  	 fprintf(fp, "\tif %s == 0 goto %s\n", val, lab);
-	  *]
-	  E 
-	  [* fprintf(fp, "\tgoto %s\n", end);
-	  	 fprintf(fp, "%s\n", lab);
-	  *]
-	  { 'else' 'if' '(' E:val ')'
-	  	[* lab = new_lab();
-	  	   fprintf(fp, "\tif %s == 0 goto %s\n", val, lab);
-	  	*]
-	  	E
-	  	[* fprintf(fp, "\tgoto %s\n", end);
-	  	   fprintf(fp, "%s\n", lab);
-	    *]
-	  }
-	  [ 'otherwise' E ]
-	  [* fprintf(fp, "%s\n", end); *].
-				 
-E:char* ::= P:val1 
+ASSIGN ::= ID:name
+	  	   [* if (!symbol_lookup_key(global, &name, NULL)) {
+	  	          text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+	  	      }
+	  	   *]  
+	  	   [ '=' EXPR:val [* fprintf(fp, "\t%s = %s\n", name, val); *] ].
+
+PRINT ::= 'print' '(' EXPR:val ')'
+		  [* fprintf(fp, "\tprint %s\n", val);
+		  *].
+
+COND ::= 'if' '(' EXPR:val ')' 
+	     [* char* end = new_lab();
+	  	    char* lab = new_lab();
+	  	    fprintf(fp, "\tif %s == 0 goto %s\n", val, lab);
+	     *]
+	     '{' COMP_STMT '}' 
+	     [* fprintf(fp, "\tgoto %s\n", end);
+	  	    fprintf(fp, "%s\n", lab);
+	     *]
+	     { 'elif' '(' EXPR:val ')'
+	  	   [* lab = new_lab();
+	  	      fprintf(fp, "\tif %s == 0 goto %s\n", val, lab);
+	  	   *]
+	  	   '{' COMP_STMT '}' 
+	  	   [* fprintf(fp, "\tgoto %s\n", end);
+	  	      fprintf(fp, "%s\n", lab);
+	       *]
+	     }
+	     [ 'else' '{' COMP_STMT '}' ]
+	     [* fprintf(fp, "%s\n", end); *].
+
+LOOP ::= 'while' '(' EXPR:val ')' 
+		 [* char* begin = new_lab();
+		 	char* end = new_lab();
+		 	push(loop_stack, end);
+		 	fprintf(fp, "%s\n", begin);
+		 	fprintf(fp, "\tif %s == 0 goto %s\n", val, end);
+		 *]
+		 '{' COMP_STMT '}'
+		 [* fprintf(fp, "\tgoto %s\n", begin);
+		 	fprintf(fp, "%s\n", end);
+		 	char* label = pop(loop_stack);
+		 *].
+
+COMP_STMT ::= { STMT }.
+
+BREAK ::= 'break' [* char* label = pop(loop_stack);
+					 if (!label) {
+					 	text_message(TEXT_ERROR, "use of 'break' must be within a loop\n");
+					 } else {
+					 	fprintf(fp, "\tgoto %s\n", label);
+					 }
+				  *].
+
+EXPR:char* ::= PRIMITIVE:val1 
 		   [* result = new_temp();
 		   	  fprintf(fp, "\t%s = %s\n", result, val1);
 		   	  val1 = result;
 		   *] 
-		   { '+' P:val2 (* addition *)
+		   { '+' PRIMITIVE:val2 (* addition *)
 		     [* result = new_temp();
 		     	fprintf(fp, "\t%s = %s + %s\n", result, val1, val2);
 		      	val1 = result;
 		     *]
+		     
+		   | '-' PRIMITIVE:val2 (* subtraction *)
+		     [* result = new_temp();
+		     	fprintf(fp, "\t%s = %s - %s\n", result, val1, val2);
+		     	val1 = result;
+		     *]
 		   }.
 
-P:char* ::= INTEGER:val (* integer literals *)
-		    [* result = (char*) mem_malloc(12);
-		       sprintf(result, "%li", val); *]
-		  | ID:name (* variables *)
-		    [* if (!symbol_lookup_key(global, &name, NULL)) {
-		       	  text_message(TEXT_ERROR, "'%s' undeclared\n", name);
-		       } else {
-		       	 result = name; 
-		       }
-		    *].
+PRIMITIVE:char* ::= INTEGER:val (* integer literals *)
+		            [* result = (char*) mem_malloc(12);
+		               sprintf(result, "%li", val); 
+		            *]
+		          | ID:name (* variables *)
+		            [* if (!symbol_lookup_key(global, &name, NULL)) {
+		       	           text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+		               } else {
+		       	           result = name; 
+		               }
+		            *].
