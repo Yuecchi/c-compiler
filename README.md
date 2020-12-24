@@ -70,20 +70,37 @@ ISSUES
      
 23/12/2020
 
-
 CHANGES
 
   - Modified the label stack in ma_aux so it now holds two labels.
     This change has been made to facilitate the implementation of
     both the break and continue statements.
-  - Added 'peek' functions to the label stack. this was done to fix
-    in order to fix a bug in the grammar where calling break more
-    then once inside a loop would cause all subsequent breaks to
-    jump to a null address.
+  - Added 'peek' functions to the label stack. This was done in order 
+    to fix a bug in the grammar where calling break more than once inside 
+    a loop would cause all subsequent breaks to jump to a null address.
+  - Added boolean expressions to the grammar
+  - Added unary expressions to the grammar
+  - Modified the semantics of addition expressions so the code generation 
+    closer matches that of boolean expressions. Binary expression will no
+    longer contain integer literals.
+  - Began rewriting cgen to account for the changes made to expression
+    semantics, and to improve the modularity of the code. Cgen now converts
+    the conents of the .tac file to quadruples. This should make mips code
+    generation a more natural process. 
       
 ISSUES
 
-  - No new issues currently.
+  - cgen rewrite needs finishing.
+  
+24/12/2020
+
+CHANGES
+
+  - No new changes.
+      
+ISSUES
+
+  - No new issues.
     
     
  
