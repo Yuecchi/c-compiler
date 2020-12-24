@@ -100,6 +100,9 @@ CHANGES
     as the previous version of cgen plus boolean expression. cgen is now much
     easier to to add new features to and has been written to support targeting
     of multiple architectures.
+  - Fixed a bug where while loops were only checking their condition upon first
+    entering the loop and then not performing any checks on subsequent iterations
+    of the loop.
       
 ISSUES
 
