@@ -96,11 +96,14 @@ ISSUES
 
 CHANGES
 
-  - No new changes.
+  - cgen has been completely rewritten and now supports all the same features 
+    as the previous version of cgen plus boolean expression. cgen is now much
+    easier to to add new features to and has been written to support targeting
+    of multiple architectures.
       
 ISSUES
 
-  - No new issues.
+  - cgen needs commenting.
     
     
  
