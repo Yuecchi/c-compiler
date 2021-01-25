@@ -230,7 +230,7 @@ void * symbol_insert_symbol(const void * table, void * symbol) /* insert a symbo
   s->next_scope = TABLE->current->next_scope;
   TABLE->current->next_scope = s;
   
-  s->scope = TABLE->current;  /* set up pointer to scope block */
+  s->scope = TABLE->current + 1;  /* set up pointer to scope block */
   
   return symbol; 
 }
@@ -241,13 +241,12 @@ void * symbol_lookup_key(const void * table, void * key, void * scope) /* lookup
   symbol_ * p = TABLE->table[hash % TABLE->hash_size]; 
   
   /* look for symbol with same hash and a true compare */
-  while (p != NULL &&         /* hash!=p->hash && */(* TABLE->compare)(key, p + 1)!= 0)
-    p = p->next_hash; 
-  
+  while (!(p == NULL || (((* TABLE->compare)(key, p + 1) == 0) && !(p->scope != scope && scope != NULL)))) {
+  	p = p->next_hash;
+  }
+
   if (p == NULL) return NULL;  /* Not found at all */
-    
-  if (scope != NULL && p->scope != scope) return NULL;  /* Not found in this scope level */
-    
+	
   return p + 1; 
 }
 

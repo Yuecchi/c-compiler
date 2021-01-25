@@ -1,0 +1,381 @@
+SYMBOL_TABLE(table 101 31
+				symbol_compare_string
+				symbol_hash_string
+				symbol_print_string
+				[* char* id; int type; int offset; int params; int size *]
+			)
+			
+USES("ma_aux.h")
+USES("tbl_aux.h")
+USES("scope_chain.h")
+USES("type.h")
+USES("stack.h")
+
+TRNS_UNIT ::= [* fp = fopen("func.tac", "w"); 
+				 ft = fopen("func.tbl", "w");
+			  	 link_scope(symbol_get_scope(table));
+			  	 global_scope = *this_scope();
+			  *] 
+			   { DECL:name ( VAR_DECL(name 0) | FUNC_DECL(name) ) }
+			  [* fclose(fp);
+			  	 fclose(ft);
+			  	 if (!main_scope) {
+			  	 	text_message(TEXT_ERROR, "no main function has been declared\n");
+			  	 }
+			  *].			  
+
+DECL:char* ::= 'int' ID:result.
+
+VAR_DECL(name:char* offset:int) ::= 
+[*  void *key;
+	void *scp = *this_scope();
+	if (symbol_lookup_key(table, &name, scp)) {
+		text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+	} else {
+		key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+		table_cast(key)->type   = INT;
+		table_cast(key)->offset = offset;
+		if (scp == global_scope) {
+			fprintf(ft, "%s %d %d\n", name, INT, 0);
+		} 
+	}
+	*]
+	[ '=' EXPR:val 
+	[* 
+	  if (offset) {
+		  fprintf(fp, "\t$fp(%d) = %s\n", offset, val);
+	  } else {
+		  fprintf(fp, "\t%s = %s\n", name, val);
+	  }
+	*] 
+	] ';'.
+
+FUNC_DECL(name:char*) ::=  
+[* void *key = 0;
+   int size = 4;
+   int locals = 0;
+   if (symbol_lookup_key(table, &name, *this_scope())) {
+       text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+   } else {
+       key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+       table_cast(key)->type = FUNC;
+       fprintf(fp, "#%s\n", name);
+       if (strcmp(name, "main")) {
+  	       fprintf(fp, "\tpush $ra\n");
+  	   } else {
+  	       fprintf(fp, "\tpush $sp\n");
+  	   }
+   }
+*] 
+'(' [* void *scp = symbol_new_scope(table, NULL);
+	   link_scope(scp);
+	   if (!strcmp(name, "main")) {
+	       main_scope = scp;
+	   }
+	*] 
+[ PARAMS(scp):params 
+  [* if (key) {
+  	     table_cast(key)->params = params;
+  	     size += (4 * params);
+  	     if (!strcmp(name, "main")) {
+  	     	fprintf(fp, "\tpush %i\n", 4 * params);
+  	     } 
+  	 } 
+  *] 
+] 
+')' 
+SCOPE(scp size):declarations 
+[*	locals = declarations;
+	size += (4 * declarations) + 4;
+	table_cast(key)->size = size;
+	if (scp != main_scope) {
+		fprintf(fp, "\treturn\n");
+    } else {
+    	fprintf(fp, "\tterminate\n");
+    }
+    fprintf(ft, "%s %d %d\n", name, FUNC, locals); 
+*].
+			   							   
+PARAMS(scp:void*):int ::= DECL:name
+						  [* void* key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+							 int offset;
+							 result = 1;
+			   	  			 table_cast(key)->type = INT;
+			   	  			 offset = table_cast(key)->offset = result * 4;
+			   			  *] 
+			   			  { ',' DECL:name
+			   	 			[* if (symbol_lookup_key(table, &name, scp)) {
+			   	 	    	       text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+			   	 		  	   } else {
+			   	 				   key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+			   	 				   result += 1;
+			   	 				   table_cast(key)->type = INT;
+			   	 				   offset  = table_cast(key)->offset = result * 4;
+			   	 		  	   }
+			   	 		    *] 
+			   			  }.
+
+SCOPE(scp:void* offset:int):int ::= [* result = 0; *] 
+									'{' { DECL:name VAR_DECL(name offset) 
+									      [* offset += 4; 
+									         result += 1; 
+									      *] 
+									 |    ( ID:name ( FUNC_CALL(name 0) | ASSIGN(name) ) | RETURN | PRINT | BREAK | CONTINUE ) ';'
+									 |    COND(offset):declarations
+									      [* result += declarations; *]
+									 |    WHILE(offset):declarations
+									      [* result += declarations; *] 
+									 |    [* void *new_scope = symbol_new_scope(table, NULL); 
+									         link_scope(new_scope); 
+									      *] 
+									      SCOPE(new_scope offset):declarations
+									      [* result += declarations; *]
+									    } 
+								    '}' 
+								     [* symbol_unlink_scope(table); 
+								 	    unlink_scope();
+								 	    symbol_set_scope(table, *this_scope());
+								     *].
+
+RETURN ::= 'return' [ EXPR:val
+					  [* if (*this_scope() != main_scope) {
+					         fprintf(fp, "\treturn %s\n", val);
+					     } else {
+					         fprintf(fp, "\tterminate\n");
+					     } 
+					  *] 
+					].
+
+FUNC_CALL(name:char* assign:int):char* ::=  
+[*  void **chain = this_scope();
+	if (*chain == global_scope) {
+		text_message(TEXT_ERROR, "initializer element '%s' is not constant\n", name);
+	}
+ 	void *key;
+ 	args = 0;
+ 	while (chain) {
+ 		if ((key = symbol_lookup_key(table, &name, *chain))) {
+ 			if (table_cast(key)->type != FUNC) {
+ 			    text_message(TEXT_ERROR, "'%s' is not a function or function pointer\n", name);
+ 			}
+ 		    break;
+ 		}
+ 		chain = prev_scope(chain);
+ 	}
+ 	if (!key) {
+ 		text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+ 	} else {
+ 		result = mem_malloc(7 + strlen(name));
+ 		sprintf(result, "call %s", name);
+		fprintf(fp, "\tpush $fp\n");
+		fprintf(fp, "\tpush 4\n"); 
+ 	}
+ *] 
+ '(' [ ARGS:args ]
+ 	 [* if (key) {
+	 	 	if (table_cast(key)->params != args) {
+	 	 		text_message(TEXT_ERROR, "parameter mismatch in function '%s'\n", name);
+	 	 	}
+ 	 	}
+	 *] 
+ ')'[* if (!assign) fprintf(fp, "\tcall %s\n", name); *].
+
+ARGS:int ::= EXPR:val 
+	          [* result = 1;
+	          	 fprintf(fp, "\tpush %s %d\n", val, result * 4);
+	          *] 
+		      { ',' EXPR:val
+		        [* result += 1; 
+	          	   fprintf(fp, "\tpush %s %d\n", val, result * 4);
+		        *] 
+		      }.
+
+COND(offset:int):int ::=
+ [* result = 0; *] 
+ 'if' '(' EXPR:val ')' 
+ [* char* end = new_lab();
+    char* lab = new_lab();
+    void *scp = symbol_new_scope(table, NULL);
+    link_scope(scp);
+    fprintf(fp, "\tif %s == 0 goto %s\n", val, lab + 1);
+ *]
+ SCOPE(scp offset):declarations
+ [*
+ 	result += declarations;
+ 	fprintf(fp, "\tgoto %s\n", end + 1);
+    fprintf(fp, "%s\n", lab);
+ *]
+ { 'elif' '(' EXPR:val ')'
+   [* lab = new_lab();
+   	  scp = symbol_new_scope(table, NULL);
+   	  link_scope(scp);
+      fprintf(fp, "\tif %s == 0 goto %s\n", val, lab + 1);
+   *]
+   SCOPE(scp offset):declarations 
+   [* result += declarations;
+   	  fprintf(fp, "\tgoto %s\n", end + 1);
+      fprintf(fp, "%s\n", lab);
+   *]
+ }
+ [* scp = symbol_new_scope(table, NULL);
+ 	link_scope(scp);
+ *]
+ [  'else' SCOPE(scp offset):declarations ]
+ [* result += declarations;
+    fprintf(fp, "%s\n", end); 
+ *].
+
+WHILE(offset:int):int ::= 
+ 'while'
+ [* char* begin = new_lab();
+ 	char* end = new_lab();
+ 	push(&loop_stack, begin);
+ 	fprintf(fp, "%s\n", begin);
+ *] 
+'(' EXPR:val ')' 
+ [* fprintf(fp, "\tif %s == 0 goto %s\n", val, end + 1); 
+ 	void *scp = symbol_new_scope(table, NULL);
+ 	link_scope(scp);
+ *]
+ SCOPE(scp offset):result
+ [* fprintf(fp, "\tgoto %s\n", begin + 1);
+ 	fprintf(fp, "%s\n", end);
+ 	pop(&loop_stack);
+ *].
+
+BREAK ::= 'break' [* char** label = ((char**)peek(&loop_stack));
+					 if (!label) {
+					 	text_message(TEXT_ERROR, "use of 'break' must be within a loop\n");
+					 } else {
+					    int end = 1 + atoi((*label) + 2);
+					 	fprintf(fp, "\tgoto L%i\n", end);
+					 }
+				  *].
+
+CONTINUE ::= 'continue' [* char** label = ((char**)peek(&loop_stack));
+					 	   if (!label) {
+					 	       text_message(TEXT_ERROR, "use of 'continue' must be within a loop\n");
+					       } else {
+					 	       fprintf(fp, "\tgoto %s\n", (*label) + 1);
+					       }
+				        *].
+		 
+PRINT ::= 'print' '(' EXPR:val ')'
+		  [* fprintf(fp, "\tprint %s\n", val);
+		  *].
+
+ASSIGN(name:char*) ::= 
+[   '=' EXPR:val 
+	[* void **chain = this_scope();
+	 void *key;
+	 while (chain) {
+		 if ((key = symbol_lookup_key(table, &name, *chain))) {
+			 if (table_cast(key)->type != INT) {
+				 text_message(TEXT_ERROR, "'%s' is not an integer\n", name);
+			 }
+			 break;
+		 }
+		 chain = prev_scope(chain);
+	 }
+	 if (!key) {
+		 text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+	 } else {
+	 	 int offset = table_cast(key)->offset;
+	 	 if (offset) {
+			 fprintf(fp, "\t$fp(%d) = %s\n", offset, val);
+	 	 } else {
+	 	 	 fprintf(fp, "\t%s = %s\n", name, val);
+	 	 }
+	 }
+	*] 
+].
+
+EXPR:char*  ::= BOOL:result.
+
+BOOL:char* ::= SUM:val1 [* result = val1; *]
+			   { '==' SUM:val2
+			     [* result = new_temp();
+			        fprintf(fp, "\t%s = %s == %s\n", result, val1, val2);
+			        val1 = result;
+			     *]
+			   | '>=' SUM:val2
+			     [* result = new_temp();
+			        fprintf(fp, "\t%s = %s >= %s\n", result, val1, val2);
+			        val1 = result;
+			     *]
+			   | '>' SUM:val2 
+			   	 [* result = new_temp();
+			   	 	fprintf(fp, "\t%s = %s > %s\n", result, val1, val2);
+			   	 	val1 = result;
+			   	 *]
+			   | '<=' SUM:val2
+			   	 [* result = new_temp();
+			   	 	fprintf(fp, "\t%s = %s <= %s\n", result, val1, val2);
+			   	 	val1 = result;
+			   	 *]
+			   | '<' SUM:val2
+			   	 [* result = new_temp();
+			   	 	fprintf(fp, "\t%s = %s < %s\n", result, val1, val2);
+			   	 	val1 = result;
+			   	 *]
+			   | '!=' SUM:val2
+			   	 [* result = new_temp();
+			   	 	fprintf(fp, "\t%s = %s != %s\n", result, val1, val2);
+			   	 	val1 = result;
+			   	 *]
+			   }.
+
+SUM:char*   ::= UNARY:val1 [* result = val1; *]
+				{ '+' UNARY:val2
+				  [* result = new_temp();
+				  	 fprintf(fp, "\t%s = %s + %s\n", result, val1, val2);
+				  	 val1 = result;
+				  *]	     
+		      	| '-' UNARY:val2 (* subtraction *)
+		          [* result = new_temp();
+		     	     fprintf(fp, "\t%s = %s - %s\n", result, val1, val2);
+		     	     val1 = result;
+		          *]
+		        }.
+				
+UNARY:char* ::= PRIMITIVE:val1 [* result = new_temp(); 
+							   	  fprintf(fp, "\t%s = %s\n", result, val1);
+							   	  val1 = result;
+							   *].
+							   
+PRIMITIVE:char*   ::= INTEGER:val (* integer literals *)
+					  [* result = (char*) mem_malloc(12);
+				   		 sprintf(result, "%li", val);
+					  *]
+			  		| [* int func = 0; *] 
+			  		  ID:name [ FUNC_CALL(name 1):call 
+			  		  			[* func = 1;
+			  		  			   result = call;
+			  		  			*] 
+			  		  		  ]
+			  		  [* if (!func) {
+				  		  	 void **chain = this_scope();
+						 	 void *key;
+						 	 while (chain) {
+						 	     if ((key = symbol_lookup_key(table, &name, *chain))) {
+						 		     if (table_cast(key)->type != INT) {
+						 			     text_message(TEXT_ERROR, "'%s' is not an integer\n", name);
+						 			 }
+						 		     break;
+						 		 }
+						 		 chain = prev_scope(chain);
+						 	 }
+						 	 if (!key) {
+						 		 text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+						 	 } else {
+						 	 	 int offset = table_cast(key)->offset;
+						 	 	 if (offset) {
+						 	 	 	result = (char*) mem_malloc(15);
+						 	 	 	sprintf(result, "$fp(%d)", offset);
+						 	 	 } else {
+						 	 	 	result = name;
+						 	 	 }
+						 	 }
+					 	 }
+					  *]. 
+			  		 			    		

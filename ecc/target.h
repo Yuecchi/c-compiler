@@ -7,7 +7,6 @@
 
 typedef void (*header_t)(FILE*, FILE*);
 typedef void (*operation_t)(quad*, FILE*);
-typedef void (*terminate_t)(FILE*);
 
 typedef struct _target_t {
 	header_t header;
@@ -23,8 +22,11 @@ typedef struct _target_t {
 	operation_t cond_jump;
 	operation_t jump;
 	operation_t print;
+	operation_t terminate;
+	operation_t return_;
+	operation_t push;
+	operation_t call;
 	operation_t label;
-	terminate_t terminate;
 } target_t;
 
 #endif /* TARGET_H */ 

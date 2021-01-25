@@ -3,6 +3,8 @@
 
 int is_temp(char *token);
 
+int is_fp(char *token);
+
 int is_label(char *token);
 
 char* is_int(char *token);

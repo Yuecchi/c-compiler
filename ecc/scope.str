@@ -1,0 +1,19 @@
+int x;
+int y = 12;
+int z = 5 + 3 + 7;
+int func(int a, int b, int c) {
+	int x;
+	int y = 6;
+	int z = 7 + 9 + 11;
+	a;
+	b = 2;
+	c = 32 + 14 + 2;
+	{
+		{
+			func(x, y + 1, a + b);
+			{}
+			{}
+			{}
+		}
+	}
+}

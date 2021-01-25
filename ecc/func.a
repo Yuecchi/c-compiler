@@ -1,0 +1,124 @@
+	.data
+x:	.word 0x0
+	.text
+save_frame:
+	addi $sp, $sp, -44
+	sw $t0, 44($sp)
+	sw $t1, 40($sp)
+	sw $t2, 36($sp)
+	sw $t3, 32($sp)
+	sw $t4, 28($sp)
+	sw $t5, 24($sp)
+	sw $t6, 20($sp)
+	sw $t7, 16($sp)
+	sw $t8, 12($sp)
+	sw $t9, 8($sp)
+	sw $fp, 4($sp)
+	jr $ra
+load_frame:
+	lw $t0, 44($sp)
+	lw $t1, 40($sp)
+	lw $t2, 36($sp)
+	lw $t3, 32($sp)
+	lw $t4, 28($sp)
+	lw $t5, 24($sp)
+	lw $t6, 20($sp)
+	lw $t7, 16($sp)
+	lw $t8, 12($sp)
+	lw $t9, 8($sp)
+	lw $fp, 4($sp)
+	addi $sp, $sp, 44
+	jr $ra
+fib:
+	sw $ra, 0($fp)
+	lw $t1, -4($fp)
+	li $t2, 0
+	seq $t3, $t1, $t2
+	beqz $t3, L2
+	li $t4, 1
+	lw $ra, 0($fp)
+	move $v1, $t4
+	move $sp, $fp
+	jr $ra
+	j L1
+L2:
+	lw $t5, -4($fp)
+	li $t6, 1
+	seq $t7, $t5, $t6
+	beqz $t7, L3
+	li $t8, 1
+	lw $ra, 0($fp)
+	move $v1, $t8
+	move $sp, $fp
+	jr $ra
+	j L1
+L3:
+	jal save_frame
+	move $v1, $sp
+	addi $sp, $sp, -4
+	lw $t9, -4($fp)
+	li $t0, 1
+	sub $t1, $t9, $t0
+	addi $sp, $sp, -4
+	sw $t1, 4($sp)
+	move $fp, $v1
+	jal fib
+	jal load_frame
+	move $t2, $v1
+	jal save_frame
+	move $v1, $sp
+	addi $sp, $sp, -4
+	lw $t3, -4($fp)
+	li $t4, 2
+	sub $t5, $t3, $t4
+	addi $sp, $sp, -4
+	sw $t5, 4($sp)
+	move $fp, $v1
+	jal fib
+	jal load_frame
+	move $t6, $v1
+	add $t7, $t2, $t6
+	lw $ra, 0($fp)
+	move $v1, $t7
+	move $sp, $fp
+	jr $ra
+L1:
+	lw $ra, 0($fp)
+	li $v1, 0
+	move $sp, $fp
+	jr $ra
+main:
+	move $fp, $sp
+	addi $sp, $sp, -8
+	li $t8, 0
+	sw $t8, -4($fp)
+L4:
+	lw $t9, -4($fp)
+	li $t0, 10
+	slt $t1, $t9, $t0
+	beqz $t1, L5
+	jal save_frame
+	move $v1, $sp
+	addi $sp, $sp, -4
+	lw $t2, -4($fp)
+	addi $sp, $sp, -4
+	sw $t2, 4($sp)
+	move $fp, $v1
+	jal fib
+	jal load_frame
+	move $t3, $v1
+	la $a3, x
+	sw $t3, ($a3)
+	la $a0, x
+	lw $t4, ($a0)
+	move $a0, $t4
+	li $v0, 1
+	syscall
+	lw $t5, -4($fp)
+	li $t6, 1
+	add $t7, $t5, $t6
+	sw $t7, -4($fp)
+	j L4
+L5:
+	li $v0, 10
+	syscall

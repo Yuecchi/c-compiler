@@ -32,9 +32,15 @@ void mips_jump(quad *qd, FILE *dst);
 
 void mips_print(quad *qd, FILE *dst);
 
-void mips_label(quad *qd, FILE *dst);
+void mips_terminate(quad *qd, FILE *dst);
 
-void mips_terminate(FILE *dst);
+void mips_return(quad *qd, FILE *dst);
+
+void mips_push(quad *qd, FILE *dst);
+
+void mips_call(quad *qd, FILE *dst);
+
+void mips_label(quad *qd, FILE *dst);
 
 static const target_t mips = {
 	mips_header,
@@ -50,8 +56,11 @@ static const target_t mips = {
 	mips_cond_jump,
 	mips_jump,
 	mips_print,
-	mips_label,
-	mips_terminate
+	mips_terminate,
+	mips_return,
+	mips_push,
+	mips_call,
+	mips_label
 };
 
 #endif /* MIPS_H */

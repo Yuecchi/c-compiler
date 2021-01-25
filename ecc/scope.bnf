@@ -1,0 +1,20 @@
+SYMBOL_TABLE(table 101 31
+				symbol_compare_string
+				symbol_hash_string
+				symbol_print_string
+				[* char* id; int i *]
+			)
+
+USES("scope_chain.h")
+
+TRNS_UNIT ::= { DECL ( VAR_INIT ';' | FUN_DECL ) }.
+DECL	  ::= 'int' ID.
+VAR_INIT  ::= [ '=' EXPR ].
+FUN_DECL  ::= '(' [ PARAMS ] ')' SCOPE.
+PARAMS	  ::= DECL { ',' DECL }.
+SCOPE	  ::= '{' { ( DECL VAR_INIT | ID ( ASSIGN | FUNC ) ) ';' | SCOPE } '}'.
+ASSIGN	  ::= [ '=' EXPR ].
+FUNC	  ::= '(' { ARGS } ')'.
+ARGS	  ::= EXPR { ',' EXPR }.
+EXPR	  ::= PRIMITIVE { '+' PRIMITIVE }.
+PRIMITIVE ::= ID | INTEGER.

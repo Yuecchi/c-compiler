@@ -1,0 +1,29 @@
+TODO
+
+# add multiplication, division, modulo and backeted 
+  expressions
+
+# add arrays (at some point?)
+
+ISSUES
+
+# global variables currently can't have values assigned
+  in the global scope. they need to be precalculated 
+  during the parsing phase and their values must then be 
+  written to the symbol table file
+
+# it is currently uncertain whether or not functions can be 
+  passed as paramters
+
+NOTES
+
+# dynamic stack allocation is still being used for parameters
+  this space allocation could be batched with the space allocation
+  performed for local variables
+
+# register allocation strategy is flawed and may not work
+  in certain cases with bracketed expressions
+
+
+
+

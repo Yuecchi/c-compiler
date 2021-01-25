@@ -6,19 +6,12 @@
 *
 ****************************************************************************/
 
-typedef struct _label_stack_node *label_stack_node;
-typedef struct _label_stack *label_stack;
+#include "stack.h"
 
 FILE * fp;
-label_stack loop_stack;
+stack_t *loop_stack;
 
 char * new_temp(void); 
 char * new_lab(void);
-
-label_stack create_label_stack();
-void push(label_stack lstack, char *start, char *end);
-void *pop(label_stack lstack);
-char *start(label_stack lstack);
-char *end(label_stack lstack);
 
 /* End of ma_aux.h */

@@ -24,7 +24,7 @@ char* quad_fill(quad *qd, char *str) {
 	char *pch = strtok(str, " \t");
 	if (is_label(pch)) { /* label */
 			qd->op = NULL;
-			qd->result = pch;
+			qd->result = pch + 1;
 	} else {		
 		int keyword = is_keyword(pch);
 		if (!keyword) {
@@ -32,6 +32,12 @@ char* quad_fill(quad *qd, char *str) {
 			qd->result = pch;
 			qd->op     = strtok(NULL, " \t");
 			qd->arg1   = strtok(NULL, " \t");
+			
+			/* _tn_ = call func */
+			if (!strcmp(qd->arg1, "call")) {
+				qd->arg2 = strtok(NULL, " \t");
+				return qd->op; 
+			}
 
 			/* result = arg1 op arg2 (binary assignment) */
 			char *pch = strtok(NULL, " \t");
@@ -40,7 +46,7 @@ char* quad_fill(quad *qd, char *str) {
 				qd->arg2 = strtok(NULL, " \t"); 
 			}
 		} else {
-			/* unconditional jump / print statment */
+			/* unconditional jump / print statment / terminate / return */
 			qd->op = pch;
 			qd->arg1 = strtok(NULL, " \t");
 			switch (keyword) {
@@ -49,6 +55,9 @@ char* quad_fill(quad *qd, char *str) {
 						pch = strtok(NULL, " \t");
 					}
 					qd->result = pch;
+					break;
+				case 6: /* push */
+					qd->arg2 = strtok(NULL, " \t");
 					break;
 				default:
 					return NULL;

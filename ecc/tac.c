@@ -5,34 +5,46 @@
 #define INTEGERS "0123456789" 
 
 const char *KEYWORDS[] = {
-	"if",	 // 1
-	"goto",	 // 2
-	"print", // 3
+	"if",	 	 // 1
+	"goto",	 	 // 2
+	"print", 	 // 3
+	"terminate", // 4
+	"return",	 // 5
+	"push",		 // 6
+	"call",		 // 7
 	NULL
 };
 
 const char *OP[] = {
-	"=", 	 // 1
-	"+", 	 // 2
-	"-", 	 // 3
-	"==",    // 4
-	">=",	 // 5
-	">", 	 // 6
-	"<=",	 // 7
-	"<",     // 8
-	"!=",    // 9
-	"if", 	 // 10
-	"goto",  // 11
-	"print", // 12
+	"=", 	 	 // 1
+	"+", 	 	 // 2
+	"-", 	 	 // 3
+	"==",    	 // 4
+	">=",	 	 // 5
+	">", 	 	 // 6
+	"<=",	 	 // 7
+	"<",     	 // 8
+	"!=",    	 // 9
+	"if", 	 	 // 10
+	"goto",  	 // 11
+	"print", 	 // 12
+	"terminate", // 13
+	"return",	 // 14
+	"push",		 // 15
+	"call",		 // 16
 	NULL
 };
 
 int is_temp(char *token) {
-	return token[0] == '_' && token[1] == 't';
+	return token[0] == '$' && token[1] == 't';
+}
+
+int is_fp(char *token) {
+	return token[0] == '$' && token[1] == 'f';
 }
 
 int is_label(char *token) {
-	return token[0] == '_' && token[1] == 'L';
+	return token[0] == '#';
 }
 
 char* is_int(char *token) {
