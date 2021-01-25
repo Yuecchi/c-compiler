@@ -1,4 +1,4 @@
-# IndividualProject 2020 Elliot Carter
+# ecc - C Compiler By Elliot Carter
 
 Final Year Project Repository
 
@@ -108,7 +108,67 @@ ISSUES
 
   - cgen needs commenting.
     
-    
+25/01/2021
+
+CHANGES
+
+  - The project has no officially been named "ecc", short for "Elliot's C Compiler".
+  - ecc now supports functions. This includes:
+    - Declaration of functions in the global scope.
+    - Scope, local variable declaration and shadowing.
+    - Use of function calls from within any scope including their own, meaning ecc 
+      supports recursion.
+    - The use of functions calls within expressions.  
+  - In order to facilitate the large changes which were necessary to implement 
+    functions, the grammar has once again been rewritten, and is now stored in a 
+    file named "func.bnf". A lot of the old grammar was reintegrated into this new
+    grammar once functions were workking, however several changes were madae to 
+    account for the addition of functions.
+      - The terminal symbol "PRIMITIVE" now includes function calls, enabling the
+        use of functions in expressions.
+      - Operations involving symbol table lookups have been rewritten to account 
+        for multiple scopes.
+      - The grammar now supports the use of arbitrary scopes
+      - The grammar now expects the translation unit to contain a main function
+      - The symbol table file "func.tbl" now stores the names of variables and
+        functions declared in the global scope. Additionally, each symbol written
+        to the file is now accompanied with a value representing whether it is an
+        integer or a function, and for functions, a value indiciating the number of
+        local variables declared within the function.
+  - The IR has has several new commands added:
+    - push, which indicates the allocation or deallocation of stack space.
+    - call, which indicates a function call
+    - return, which indicates returning from a function
+  - "ma_aux.c" has been modified so now labels are preceeded by '#' symbols and 
+    temps are preceeded by '$' symbols. This change was made to make parsing the
+    IR simpler and to avoid clashes with variable names.
+  - The implementation of a stack which held labels of active loops has been removed
+    from "ma_aux". I am now instead using a general stack implementation I wrote in
+    files "stack.c" and "stack.h". The header contains a stack named "loop_stack" 
+    which stores the start labels of currently active loops. Using this stack, the 
+    parser is able to tell at any point when a loop is active, and which labels to
+    use if either BREAK or CONTINUE are used.
+  - A support header "type.h" has been added. This contains a enum which is used to 
+    identify what type a a declared symbol is. Currently this only support integers
+    and functions which return integeres.
+  - A support header "scope_chain.h" has been added to assist rdp with tracking the 
+    current scope.
+
+ISSUES
+
+  - Both the semantics and grammar of func.bnf will need refactoring
+  - Global variables can technically only be declared currently. If a value
+    is assigned to them it will not be assigned correctly during runtime as
+    this will be unreachable code in the generated assembly.
+  - It is currently uncertain whether or not programs will behave as intended
+    if a function is passed as an argument to a function.
+  - Dynamic stack allocation is still being used for function arguments. It would
+    be best to change this to a batch allocation as to match how allocation is 
+    performed for all other parts of stack frames.
+  - The register allocation strategy is currently only rudimentary and could cause
+    potential issues, however no such issues occured since the fix to improve 
+    robustness was applied.
+  
  
  
     
