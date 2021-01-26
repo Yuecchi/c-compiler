@@ -1,10 +1,11 @@
 SYMBOL_TABLE(table 101 31
-				symbol_compare_string
-				symbol_hash_string
-				symbol_print_string
-				[* char* id; int type; int offset; int params; int size *]
+             symbol_compare_string
+             symbol_hash_string
+             symbol_print_string
+             [* char* id; int type; int offset; int params; int size *]
 			)
-			
+	
+USES("stdlib.h")		
 USES("ma_aux.h")
 USES("tbl_aux.h")
 USES("scope_chain.h")
@@ -39,16 +40,16 @@ VAR_DECL(name:char* offset:int) ::=
 			fprintf(ft, "%s %d %d\n", name, INT, 0);
 		} 
 	}
-	*]
-	[ '=' EXPR:val 
-	[* 
-	  if (offset) {
-		  fprintf(fp, "\t$fp(%d) = %s\n", offset, val);
-	  } else {
-		  fprintf(fp, "\t%s = %s\n", name, val);
-	  }
-	*] 
-	] ';'.
+*]
+[ '=' EXPR:val 
+[* 
+  if (offset) {
+	  fprintf(fp, "\t$fp(%d) = %s\n", offset, val);
+  } else {
+	  fprintf(fp, "\t%s = %s\n", name, val);
+  }
+*] 
+] ';'.
 
 FUNC_DECL(name:char*) ::=  
 [* void *key = 0;
@@ -96,46 +97,48 @@ SCOPE(scp size):declarations
     fprintf(ft, "%s %d %d\n", name, FUNC, locals); 
 *].
 			   							   
-PARAMS(scp:void*):int ::= DECL:name
-						  [* void* key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
-							 int offset;
-							 result = 1;
-			   	  			 table_cast(key)->type = INT;
-			   	  			 offset = table_cast(key)->offset = result * 4;
-			   			  *] 
-			   			  { ',' DECL:name
-			   	 			[* if (symbol_lookup_key(table, &name, scp)) {
-			   	 	    	       text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
-			   	 		  	   } else {
-			   	 				   key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
-			   	 				   result += 1;
-			   	 				   table_cast(key)->type = INT;
-			   	 				   offset  = table_cast(key)->offset = result * 4;
-			   	 		  	   }
-			   	 		    *] 
-			   			  }.
+PARAMS(scp:void*):int ::= 
+  DECL:name
+  [* void* key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+	 int offset;
+	 result = 1;
+	 table_cast(key)->type = INT;
+	 offset = table_cast(key)->offset = result * 4;
+  *] 
+  { ',' DECL:name
+	[* if (symbol_lookup_key(table, &name, scp)) {
+	       text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+  	   } else {
+		   key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+		   result += 1;
+		   table_cast(key)->type = INT;
+		   offset  = table_cast(key)->offset = result * 4;
+  	   }
+    *] 
+  }.
 
-SCOPE(scp:void* offset:int):int ::= [* result = 0; *] 
-									'{' { DECL:name VAR_DECL(name offset) 
-									      [* offset += 4; 
-									         result += 1; 
-									      *] 
-									 |    ( ID:name ( FUNC_CALL(name 0) | ASSIGN(name) ) | RETURN | PRINT | BREAK | CONTINUE ) ';'
-									 |    COND(offset):declarations
-									      [* result += declarations; *]
-									 |    WHILE(offset):declarations
-									      [* result += declarations; *] 
-									 |    [* void *new_scope = symbol_new_scope(table, NULL); 
-									         link_scope(new_scope); 
-									      *] 
-									      SCOPE(new_scope offset):declarations
-									      [* result += declarations; *]
-									    } 
-								    '}' 
-								     [* symbol_unlink_scope(table); 
-								 	    unlink_scope();
-								 	    symbol_set_scope(table, *this_scope());
-								     *].
+SCOPE(scp:void* offset:int):int ::= 
+[* result = 0; *] 
+'{' { DECL:name VAR_DECL(name offset) 
+      [* offset += 4; 
+         result += 1; 
+      *] 
+ |    ( ID:name ( FUNC_CALL(name 0) | ASSIGN(name) ) | RETURN | PRINT | BREAK | CONTINUE ) ';'
+ |    COND(offset):declarations
+      [* result += declarations; *]
+ |    WHILE(offset):declarations
+      [* result += declarations; *] 
+ |    [* void *new_scope = symbol_new_scope(table, NULL); 
+         link_scope(new_scope); 
+      *] 
+      SCOPE(new_scope offset):declarations
+      [* result += declarations; *]
+    } 
+'}' 
+ [* symbol_unlink_scope(table); 
+    unlink_scope();
+    symbol_set_scope(table, *this_scope());
+ *].
 
 RETURN ::= 'return' [ EXPR:val
 					  [* if (*this_scope() != main_scope) {
@@ -325,23 +328,44 @@ BOOL:char* ::= SUM:val1 [* result = val1; *]
 			   	 *]
 			   }.
 
-SUM:char*   ::= UNARY:val1 [* result = val1; *]
-				{ '+' UNARY:val2
+SUM:char*   ::= PROD:val1 [* result = val1; *]
+				{ '+' PROD:val2
 				  [* result = new_temp();
 				  	 fprintf(fp, "\t%s = %s + %s\n", result, val1, val2);
 				  	 val1 = result;
 				  *]	     
-		      	| '-' UNARY:val2 (* subtraction *)
+		      	| '-' PROD:val2 (* subtraction *)
 		          [* result = new_temp();
 		     	     fprintf(fp, "\t%s = %s - %s\n", result, val1, val2);
 		     	     val1 = result;
 		          *]
 		        }.
+
+PROD:char* ::= UNARY:val1 [* result = val1; *]
+			   { '*' UNARY:val2
+			     [* result = new_temp();
+			        fprintf(fp, "\t%s = %s * %s\n", result, val1, val2);
+			        val1 = result;
+			     *]
+			   |
+			     '/' UNARY:val2
+			     [* result = new_temp();
+			     	fprintf(fp, "\t%s = %s / %s\n", result, val1, val2);
+			     	val1 = result;
+			     *]
+			   |
+			     '%' UNARY:val2
+			     [* result = new_temp();
+			        fprintf(fp, "\t%s = %s %% %s\n", result, val1, val2);
+			        val1 = result;
+			     *]
+			   }.
 				
 UNARY:char* ::= PRIMITIVE:val1 [* result = new_temp(); 
 							   	  fprintf(fp, "\t%s = %s\n", result, val1);
 							   	  val1 = result;
-							   *].
+							   *]
+			  | '(' EXPR:val1 [* result = val1; *] ')'.
 							   
 PRIMITIVE:char*   ::= INTEGER:val (* integer literals *)
 					  [* result = (char*) mem_malloc(12);

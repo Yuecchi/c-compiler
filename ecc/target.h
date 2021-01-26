@@ -26,6 +26,9 @@ typedef struct _target_t {
 	operation_t return_;
 	operation_t push;
 	operation_t call;
+	operation_t mul;
+	operation_t div;
+	operation_t mod;
 	operation_t label;
 } target_t;
 

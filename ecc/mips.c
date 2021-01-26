@@ -23,6 +23,7 @@ int get_fp_offset(char* temp) {
 void mips_header(FILE *dst, FILE *src) {
 	char buf[32];
 	fprintf(dst, "\t.data\n");
+	fprintf(dst, "newline:\t .asciiz \"\\n\"\n");
 	while (fgets(buf, sizeof buf, src)) {
 		char *token = strtok(buf, " ");
 		int type    = atoi(strtok(NULL, " "));
@@ -154,6 +155,9 @@ void mips_print(quad *qd, FILE *dst) {
 	fprintf(dst, "\tmove $a0, $t%i\n", val_reg);
 	fprintf(dst, "\tli $v0, 1\n");
 	fprintf(dst, "\tsyscall\n");
+	fprintf(dst, "\tla $a0, newline\n");
+	fprintf(dst, "\tli $v0, 4\n");
+	fprintf(dst, "\tsyscall\n");
 }
 
 void mips_terminate(quad *qd, FILE *dst) {	
@@ -222,6 +226,29 @@ void mips_call(quad *qd, FILE *dst) {
 	// call function
 	fprintf(dst, "\tjal %s\n", qd->arg1);
 	fprintf(dst, "\tjal load_frame\n");
+}
+
+void mips_mul(quad *qd, FILE *dst) {
+	int dst_reg   = get_val_reg(qd->result);
+	int src_reg0 = get_val_reg(qd->arg1);
+	int src_reg1 = get_val_reg(qd->arg2);
+	fprintf(dst, "\tmul $t%i, $t%i, $t%i\n", dst_reg, src_reg0, src_reg1);
+}
+
+void mips_div(quad *qd, FILE *dst) {
+	int dst_reg   = get_val_reg(qd->result);
+	int src_reg0 = get_val_reg(qd->arg1);
+	int src_reg1 = get_val_reg(qd->arg2);
+	fprintf(dst, "\tdiv $t%i, $t%i\n", src_reg0, src_reg1);
+	fprintf(dst, "\tmflo $t%i\n", dst_reg);
+}
+
+void mips_mod(quad *qd, FILE *dst) {
+	int dst_reg   = get_val_reg(qd->result);
+	int src_reg0 = get_val_reg(qd->arg1);
+	int src_reg1 = get_val_reg(qd->arg2);
+	fprintf(dst, "\tdiv $t%i, $t%i\n", src_reg0, src_reg1);
+	fprintf(dst, "\tmfhi $t%i\n", dst_reg);
 }
 
 void mips_label(quad *qd, FILE *dst) {

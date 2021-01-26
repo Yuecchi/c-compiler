@@ -40,6 +40,12 @@ void mips_push(quad *qd, FILE *dst);
 
 void mips_call(quad *qd, FILE *dst);
 
+void mips_mul(quad *qd, FILE *dst);
+
+void mips_div(quad *qd, FILE *dst);
+
+void mips_mod(quad *qd, FILE *dst);
+
 void mips_label(quad *qd, FILE *dst);
 
 static const target_t mips = {
@@ -60,6 +66,9 @@ static const target_t mips = {
 	mips_return,
 	mips_push,
 	mips_call,
+	mips_mul,
+	mips_div,
+	mips_mod,
 	mips_label
 };
 
