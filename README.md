@@ -181,7 +181,7 @@ CHANGES
 
 ISSUES
 
-  - Issues stated in the previous update log still need to be addressed.
+  - No new issues.
  
  
     
