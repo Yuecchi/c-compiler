@@ -1,0 +1,92 @@
+	.data
+newline:	 .asciiz "\n"
+x:	.word 5
+y:	.word 20
+	.text
+save_frame:
+	addi $sp, $sp, -44
+	sw $t0, 44($sp)
+	sw $t1, 40($sp)
+	sw $t2, 36($sp)
+	sw $t3, 32($sp)
+	sw $t4, 28($sp)
+	sw $t5, 24($sp)
+	sw $t6, 20($sp)
+	sw $t7, 16($sp)
+	sw $t8, 12($sp)
+	sw $t9, 8($sp)
+	sw $fp, 4($sp)
+	jr $ra
+load_frame:
+	lw $t0, 44($sp)
+	lw $t1, 40($sp)
+	lw $t2, 36($sp)
+	lw $t3, 32($sp)
+	lw $t4, 28($sp)
+	lw $t5, 24($sp)
+	lw $t6, 20($sp)
+	lw $t7, 16($sp)
+	lw $t8, 12($sp)
+	lw $t9, 8($sp)
+	lw $fp, 4($sp)
+	addi $sp, $sp, 44
+	jr $ra
+sum:
+	sw $ra, 0($fp)
+	li $t1, 1
+	sw $t1, -8($fp)
+	li $t2, 0
+	sw $t2, -12($fp)
+L1:
+	lw $t3, -8($fp)
+	lw $t4, -4($fp)
+	sle $t5, $t3, $t4
+	beqz $t5, L2
+	lw $t6, -12($fp)
+	lw $t7, -8($fp)
+	add $t8, $t6, $t7
+	sw $t8, -12($fp)
+	lw $t9, -8($fp)
+	li $t0, 1
+	add $t1, $t9, $t0
+	sw $t1, -8($fp)
+	j L1
+L2:
+	lw $t2, -12($fp)
+	lw $ra, 0($fp)
+	move $v1, $t2
+	move $sp, $fp
+	jr $ra
+	lw $ra, 0($fp)
+	li $v1, 0
+	move $sp, $fp
+	jr $ra
+main:
+	move $fp, $sp
+	jal save_frame
+	move $v1, $sp
+	addi $sp, $sp, -4
+	la $a3, x
+	lw $t3, ($a3)
+	la $a0, y
+	lw $t4, ($a0)
+	mul $t5, $t3, $t4
+	addi $sp, $sp, -4
+	sw $t5, 4($sp)
+	move $fp, $v1
+	addi $sp, $sp, -8
+	jal sum
+	jal load_frame
+	move $t6, $v1
+	la $a2, x
+	sw $t6, ($a2)
+	la $a3, x
+	lw $t7, ($a3)
+	move $a0, $t7
+	li $v0, 1
+	syscall
+	la $a0, newline
+	li $v0, 4
+	syscall
+	li $v0, 10
+	syscall

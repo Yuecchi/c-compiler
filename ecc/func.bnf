@@ -2,7 +2,7 @@ SYMBOL_TABLE(table 101 31
              symbol_compare_string
              symbol_hash_string
              symbol_print_string
-             [* char* id; int type; int offset; int params; int size *]
+             [* char* id; int type; int offset; int params; int size; int value; *]
 			)
 	
 USES("stdlib.h")		
@@ -17,7 +17,7 @@ TRNS_UNIT ::= [* fp = fopen("func.tac", "w");
 			  	 link_scope(symbol_get_scope(table));
 			  	 global_scope = *this_scope();
 			  *] 
-			   { DECL:name ( VAR_DECL(name 0) | FUNC_DECL(name) ) }
+			   { DECL:name ( GLB_DECL(name) | FUNC_DECL(name) ) }
 			  [* fclose(fp);
 			  	 fclose(ft);
 			  	 if (!main_scope) {
@@ -27,29 +27,67 @@ TRNS_UNIT ::= [* fp = fopen("func.tac", "w");
 
 DECL:char* ::= 'int' ID:result.
 
+GLB_DECL(name:char*) ::=
+[*  void *key;
+	if (symbol_lookup_key(table, &name, global_scope)) {
+		text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+	}
+	val = 0;
+*] 
+[ '=' GLB_EXPR:val ] ';'
+[* fprintf(ft, "%s %d %d\n", name, INT, val);
+   key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+   table_cast(key)->id     = name;
+   table_cast(key)->type   = INT;
+   table_cast(key)->offset = 0;
+   table_cast(key)->value  = val;
+*].
+
+GLB_EXPR:int  ::= GLB_BOOL:result.
+
+GLB_BOOL:int  ::= 
+	GLB_SUM:result
+	{ '==' GLB_SUM:val [* result = result == val; *] 
+    | '!=' GLB_SUM:val [* result = result != val; *]
+    }.				  
+
+GLB_SUM:int   ::= 
+	GLB_PROD:result 
+	{ '+' GLB_PROD:val [* result += val; *] 
+    | '-' GLB_PROD:val [* result -= val; *]
+    }.
+                                  
+GLB_PROD:int  ::= 
+	GLB_PRIM:result 
+	{ '*' GLB_PRIM:val [* result *= val; *] 
+	| '/' GLB_PRIM:val [* result /= val; *] 
+    | '%' GLB_PRIM:val [* result %= val; *] 
+    }.
+
+GLB_PRIM:int ::= 
+	INTEGER:result
+|   ID:name [* 	void *key;
+				if (!(key = symbol_lookup_key(table, &name, global_scope))) {
+				    text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+				} else {
+					result = table_cast(key)->value;
+				}
+            *]
+|   '(' GLB_EXPR:result ')'.
+ 
 VAR_DECL(name:char* offset:int) ::= 
 [*  void *key;
 	void *scp = *this_scope();
 	if (symbol_lookup_key(table, &name, scp)) {
 		text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
-	} else {
-		key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
-		table_cast(key)->type   = INT;
-		table_cast(key)->offset = offset;
-		if (scp == global_scope) {
-			fprintf(ft, "%s %d %d\n", name, INT, 0);
-		} 
 	}
 *]
-[ '=' EXPR:val 
-[* 
-  if (offset) {
-	  fprintf(fp, "\t$fp(%d) = %s\n", offset, val);
-  } else {
-	  fprintf(fp, "\t%s = %s\n", name, val);
-  }
-*] 
-] ';'.
+[ '=' EXPR:val [* fprintf(fp, "\t$fp(%d) = %s\n", offset, val); *] ] ';'
+[* key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+   table_cast(key)->id     = name;
+   table_cast(key)->type   = INT;
+   table_cast(key)->offset = offset;
+*].
 
 FUNC_DECL(name:char*) ::=  
 [* void *key = 0;
@@ -59,6 +97,7 @@ FUNC_DECL(name:char*) ::=
        text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
    } else {
        key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+       table_cast(key)->id = name;
        table_cast(key)->type = FUNC;
        fprintf(fp, "#%s\n", name);
        if (strcmp(name, "main")) {
@@ -102,6 +141,7 @@ PARAMS(scp:void*):int ::=
   [* void* key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
 	 int offset;
 	 result = 1;
+	 table_cast(key)->id = name;
 	 table_cast(key)->type = INT;
 	 offset = table_cast(key)->offset = result * 4;
   *] 
@@ -111,6 +151,7 @@ PARAMS(scp:void*):int ::=
   	   } else {
 		   key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
 		   result += 1;
+		   table_cast(key)->id = name;
 		   table_cast(key)->type = INT;
 		   offset  = table_cast(key)->offset = result * 4;
   	   }

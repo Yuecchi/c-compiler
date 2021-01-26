@@ -1,15 +1,8 @@
 TODO
 
-# fix global variables
-
-# add arrays (at some point?)
+# add arrays
 
 ISSUES
-
-# global variables currently can't have values assigned
-  in the global scope. they need to be precalculated 
-  during the parsing phase and their values must then be 
-  written to the symbol table file
 
 # it is currently uncertain whether or not functions can be 
   passed as paramters

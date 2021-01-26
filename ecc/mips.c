@@ -28,7 +28,8 @@ void mips_header(FILE *dst, FILE *src) {
 		char *token = strtok(buf, " ");
 		int type    = atoi(strtok(NULL, " "));
 		if (type == INT) {
-			fprintf(dst, "%s:\t.word 0x0\n", token);	
+			int val = atoi(strtok(NULL, " "));
+			fprintf(dst, "%s:\t.word %i\n", token, val);	
 		}
 	}
 	fprintf(dst, "\t.text\n");
