@@ -177,6 +177,7 @@ CHANGES
     as well as bracketed expressions
   - The repository now includes some example programs, currently located inside
     the "examples" folder.
+  - Global variables can now have values correctly assigned to them upon declaration.
 
 ISSUES
 
