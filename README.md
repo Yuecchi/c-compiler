@@ -112,7 +112,7 @@ ISSUES
 
 CHANGES
 
-  - The project has no officially been named "ecc", short for "Elliot's C Compiler".
+  - The project has now officially been named "ecc", short for "Elliot's C Compiler".
   - ecc now supports functions. This includes:
     - Declaration of functions in the global scope.
     - Scope, local variable declaration and shadowing.
@@ -169,6 +169,18 @@ ISSUES
     potential issues, however no such issues occured since the fix to improve 
     robustness was applied.
   
+26/01/2021
+
+CHANGES
+
+  - ecc now supports division, multiplication and modulo arithmetic operations
+    as well as bracketed expressions
+  - The repository now includes some example programs, currently located inside
+    the "examples" folder.
+
+ISSUES
+
+  - Issues stated in the previous update log still need to be addressed.
  
  
     
