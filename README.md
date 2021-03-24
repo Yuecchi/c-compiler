@@ -183,5 +183,17 @@ ISSUES
 
   - No new issues.
  
+ 24/03/2021
  
+ CHANGES
+ 
+ - ecc now supports arrays. 
+ - A bubsort program has been added to the examples folder as a means of demmonstrating
+   arrays.
+ 
+ ISSUES
+ 
+ - Arrays can not be passed as arguments to functions.
+ - Arrays can not be set as paramaters of functions.
+ - Functions can not return array types.
     
