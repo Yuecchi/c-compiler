@@ -5,6 +5,7 @@
 * This file may be freely distributed. Please mail improvements to the author.
 *
 ****************************************************************************/
+#include <stdio.h>
 
 #include "stack.h"
 

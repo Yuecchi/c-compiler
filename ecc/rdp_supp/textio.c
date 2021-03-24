@@ -411,7 +411,7 @@ char * text_insert_char(const char c)
     text_message(TEXT_INFO, "Ran out of text space - dumping buffer\n"); 
     text_dump(); 
     #endif
-    text_message(TEXT_FATAL, "Ran out of text space\n"); 
+    text_message(TEXT_FATAL, "Ran out of text space xD\n"); 
   }
   else
     * text_top++ = c; 

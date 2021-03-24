@@ -83,13 +83,13 @@ parser: $(RDP_SUPP)
 parserf: $(RDP_SUPP)
 	$(HERE)rdp -F $(GRAMMAR)
 	$(CC) $(CFLAGS) $(OBJ_ONLY) rdparser.c
-	$(LINK)rdparser$(EXE) rdparser$(OBJ) $(RDP_SUPP) ma_aux.o scope_chain.o stack.o $(MATHS)
+	$(LINK)rdparser$(EXE) rdparser$(OBJ) $(RDP_SUPP) ma_aux.o scope_chain.o stack.o queue.o $(MATHS)
 	$(HERE)rdparser -v -Vrdparser.vcg -l $(GRAMMAR).str
 	
 parsera: $(RDP_SUPP)
-	$(HERE)rdp $(GRAMMAR)
+	$(HERE)rdp -T40000 $(GRAMMAR)
 	$(CC) $(CFLAGS) $(OBJ_ONLY) rdparser.c
-	$(LINK)rdparser$(EXE) rdparser$(OBJ) $(RDP_SUPP) ma_aux.o scope_chain.o stack.o $(MATHS)
+	$(LINK)rdparser$(EXE) rdparser$(OBJ) $(RDP_SUPP) ma_aux.o scope_chain.o stack.o queue.o $(MATHS)
 	$(HERE)rdparser -v -Vrdparser.vcg -l $(GRAMMAR).str
 
 eac: ./rdp ma_aux.o

@@ -11,30 +11,32 @@ USES("tbl_aux.h")
 USES("scope_chain.h")
 USES("type.h")
 USES("stack.h")
+USES("queue.h")
 
-TRNS_UNIT ::= [* fp = fopen("func.tac", "w"); 
-				 ft = fopen("func.tbl", "w");
-			  	 link_scope(symbol_get_scope(table));
-			  	 global_scope = *this_scope();
-			  *] 
-			   { DECL:name ( GLB_DECL(name) | FUNC_DECL(name) ) }
-			  [* fclose(fp);
-			  	 fclose(ft);
-			  	 if (!main_scope) {
-			  	 	text_message(TEXT_ERROR, "no main function has been declared\n");
-			  	 }
-			  *].			  
+TRNS_UNIT ::= 
+[* fp = fopen("func.tac", "w"); 
+   ft = fopen("func.tbl", "w");
+   link_scope(symbol_get_scope(table));
+   global_scope = *this_scope();
+*] 
+{ DECL:name ( GLB_VAR(name) | GLB_ARR(name) | FUNC_DECL(name) ) }
+[* fclose(fp);
+   fclose(ft);
+   if (!main_scope) {
+       text_message(TEXT_ERROR, "no main function has been declared\n");
+   }
+*].			  
 
 DECL:char* ::= 'int' ID:result.
 
-GLB_DECL(name:char*) ::=
+GLB_VAR(name:char*) ::=
 [*  void *key;
 	if (symbol_lookup_key(table, &name, global_scope)) {
 		text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
 	}
 	val = 0;
 *] 
-[ '=' GLB_EXPR:val ] ';'
+[ '=' GLB_EXPR(0):val ] ';'
 [* fprintf(ft, "%s %d %d\n", name, INT, val);
    key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
    table_cast(key)->id     = name;
@@ -43,37 +45,101 @@ GLB_DECL(name:char*) ::=
    table_cast(key)->value  = val;
 *].
 
-GLB_EXPR:int  ::= GLB_BOOL:result.
+GLB_ARR(name:char*) ::=
+[* void *key;
+	if (symbol_lookup_key(table, &name, global_scope)) {
+		text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+	}
+	int sized = 0;
+	int count = 0;
+*]
+'[' 
+    [
+	  GLB_EXPR(1):size
+	  [* sized = 1;
+	  	 if (size < 0) {
+	         text_message(TEXT_ERROR, "size of array '%s' is negative\n", name);
+	     } 
+	  *]
+	] 
+']' 
+[ 	
+	'=' '{' [ GLB_EXPR(0):val 
+		    [*  int *temp = malloc(sizeof(int));
+		    	*temp = val;
+		    	enqueue(&array_queue, temp);
+		    	count += 1; 
+		    *] { ',' GLB_EXPR(0):val 
+		         [*  temp = malloc(sizeof(int));
+		         	 *temp = val;
+		         	 enqueue(&array_queue, temp);
+		             count += 1; 
+		         *] 
+		       } 
+		    ] 
+		 '}'
+	[* if (sized && (count > size)) {
+	       text_message(TEXT_WARNING, "excess elements in array initializer\n");
+	   }
+	*] 
+] 
+[*  key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+    if (!(count + sized)) {
+  	    text_message(TEXT_WARNING, "array '%s' assumed to have one element\n", name);
+  	    table_cast(key)->size = 4;
+    } else if (sized) {
+    	table_cast(key)->size = 4 * size;
+    } else {
+    	table_cast(key)->size = 4 * count; 
+    }
+    table_cast(key)->id = name;
+    table_cast(key)->type = ARRAY;
+    table_cast(key)->offset = 0;
+    fprintf(ft, "%s %i %i", name, ARRAY, table_cast(key)->size);
+    while (count) {
+    	int value = **((int**)dequeue(&array_queue));
+    	fprintf(ft, " %i", value);
+    	count--;
+    }
+    fprintf(ft, "\n");
+*] 
+';'.
 
-GLB_BOOL:int  ::= 
-	GLB_SUM:result
-	{ '==' GLB_SUM:val [* result = result == val; *] 
-    | '!=' GLB_SUM:val [* result = result != val; *]
+GLB_EXPR(array:int):int  ::= GLB_BOOL(array):result.
+
+GLB_BOOL(array:int):int  ::= 
+	GLB_SUM(array):result
+	{ '==' GLB_SUM(array):val [* result = result == val; *] 
+    | '!=' GLB_SUM(array):val [* result = result != val; *]
     }.				  
 
-GLB_SUM:int   ::= 
-	GLB_PROD:result 
-	{ '+' GLB_PROD:val [* result += val; *] 
-    | '-' GLB_PROD:val [* result -= val; *]
+GLB_SUM(array:int):int   ::= 
+	GLB_PROD(array):result 
+	{ '+' GLB_PROD(array):val [* result += val; *] 
+    | '-' GLB_PROD(array):val [* result -= val; *]
     }.
                                   
-GLB_PROD:int  ::= 
-	GLB_PRIM:result 
-	{ '*' GLB_PRIM:val [* result *= val; *] 
-	| '/' GLB_PRIM:val [* result /= val; *] 
-    | '%' GLB_PRIM:val [* result %= val; *] 
+GLB_PROD(array:int):int  ::= 
+	GLB_PRIM(array):result 
+	{ '*' GLB_PRIM(array):val [* result *= val; *] 
+	| '/' GLB_PRIM(array):val [* result /= val; *] 
+    | '%' GLB_PRIM(array):val [* result %= val; *] 
     }.
 
-GLB_PRIM:int ::= 
+GLB_PRIM(array:int):int ::= 
 	INTEGER:result
 |   ID:name [* 	void *key;
-				if (!(key = symbol_lookup_key(table, &name, global_scope))) {
-				    text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+				if (!array) {
+					if (!(key = symbol_lookup_key(table, &name, global_scope))) {
+						text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+					} else {
+						result = table_cast(key)->value;
+					}
 				} else {
-					result = table_cast(key)->value;
+					text_message(TEXT_ERROR, "ecc does not support variable length arrays\n", name);
 				}
             *]
-|   '(' GLB_EXPR:result ')'.
+|   '(' GLB_EXPR(array):result ')'.
  
 VAR_DECL(name:char* offset:int) ::= 
 [*  void *key;
@@ -88,6 +154,59 @@ VAR_DECL(name:char* offset:int) ::=
    table_cast(key)->type   = INT;
    table_cast(key)->offset = offset;
 *].
+
+ARR_DECL(name:char* offset:int):int ::=
+[*  void *key;
+	void *scp = *this_scope();
+	if (symbol_lookup_key(table, &name, scp)) {
+		text_message(TEXT_ERROR, "redeclaration of '%s'\n", name);
+	}
+	int sized = 0;
+	int count = 0;
+*]
+'[' 
+    [
+	  GLB_EXPR(1):size
+	  [* sized = 1;
+	  	 if (size < 0) {
+	         text_message(TEXT_ERROR, "size of array '%s' is negative\n", name);
+	     }
+	  *]
+	] 
+']' 
+[
+	'=' '{' [ EXPR:val
+			  [* fprintf(fp, "\t$fp(%d) = %s\n", offset + (4 * count), val); 
+			  	 count += 1;
+			  *] 
+			  { ',' EXPR:val
+			    [* fprintf(fp, "\t$fp(%d) = %s\n", offset + (4 * count), val);
+			       count += 1;
+			    *]
+			  }
+			] 
+		'}'
+	[* if (sized && (count > size)) {
+	       text_message(TEXT_WARNING, "excess elements in array initializer\n");
+	   }
+	*] 
+] 
+[*  key = symbol_insert_key(table, &name, sizeof(char*), sizeof(table_data));
+    if (!(count + sized)) {
+  	    text_message(TEXT_WARNING, "array '%s' assumed to have one element\n", name);
+  	    table_cast(key)->size = 4;
+  	    result = 1;
+    } else if (sized) {
+    	table_cast(key)->size = 4 * size;
+    	result = size;
+    } else {
+    	table_cast(key)->size = 4 * count; 
+    	result = count;
+    }
+    table_cast(key)->id = name;
+    table_cast(key)->type = ARRAY;
+    table_cast(key)->offset = offset;
+*] ';'.
 
 FUNC_DECL(name:char*) ::=  
 [* void *key = 0;
@@ -160,10 +279,15 @@ PARAMS(scp:void*):int ::=
 
 SCOPE(scp:void* offset:int):int ::= 
 [* result = 0; *] 
-'{' { DECL:name VAR_DECL(name offset) 
-      [* offset += 4; 
-         result += 1; 
-      *] 
+'{' { DECL:name ( VAR_DECL(name offset) 
+				  [* offset += 4; 
+				     result += 1; 
+				  *] 
+				| ARR_DECL(name offset):elements
+				  [* offset += 4 * elements;
+				  	 result += elements;
+				  *] 
+				)
  |    ( ID:name ( FUNC_CALL(name 0) | ASSIGN(name) ) | RETURN | PRINT | BREAK | CONTINUE ) ';'
  |    COND(offset):declarations
       [* result += declarations; *]
@@ -181,14 +305,16 @@ SCOPE(scp:void* offset:int):int ::=
     symbol_set_scope(table, *this_scope());
  *].
 
-RETURN ::= 'return' [ EXPR:val
-					  [* if (*this_scope() != main_scope) {
-					         fprintf(fp, "\treturn %s\n", val);
-					     } else {
-					         fprintf(fp, "\tterminate\n");
-					     } 
-					  *] 
-					].
+RETURN ::= 
+'return' 
+[ EXPR:val
+  [* if (*this_scope() != main_scope) {
+         fprintf(fp, "\treturn %s\n", val);
+     } else {
+         fprintf(fp, "\tterminate\n");
+     } 
+  *] 
+].
 
 FUNC_CALL(name:char* assign:int):char* ::=  
 [*  void **chain = this_scope();
@@ -224,15 +350,16 @@ FUNC_CALL(name:char* assign:int):char* ::=
 	 *] 
  ')'[* if (!assign) fprintf(fp, "\tcall %s\n", name); *].
 
-ARGS:int ::= EXPR:val 
-	          [* result = 1;
-	          	 fprintf(fp, "\tpush %s %d\n", val, result * 4);
-	          *] 
-		      { ',' EXPR:val
-		        [* result += 1; 
-	          	   fprintf(fp, "\tpush %s %d\n", val, result * 4);
-		        *] 
-		      }.
+ARGS:int ::= 
+  EXPR:val 
+  [* result = 1;
+  	 fprintf(fp, "\tpush %s %d\n", val, result * 4);
+  *] 
+  { ',' EXPR:val
+    [* result += 1; 
+  	   fprintf(fp, "\tpush %s %d\n", val, result * 4);
+    *] 
+  }.
 
 COND(offset:int):int ::=
  [* result = 0; *] 
@@ -287,160 +414,221 @@ WHILE(offset:int):int ::=
  	pop(&loop_stack);
  *].
 
-BREAK ::= 'break' [* char** label = ((char**)peek(&loop_stack));
-					 if (!label) {
-					 	text_message(TEXT_ERROR, "use of 'break' must be within a loop\n");
-					 } else {
-					    int end = 1 + atoi((*label) + 2);
-					 	fprintf(fp, "\tgoto L%i\n", end);
-					 }
-				  *].
+BREAK ::= 
+'break' 
+[* char** label = ((char**)peek(&loop_stack));
+   if (!label) {
+       text_message(TEXT_ERROR, "use of 'break' must be within a loop\n");
+   } else {
+       int end = 1 + atoi((*label) + 2);
+ 	   fprintf(fp, "\tgoto L%i\n", end);
+   }
+*].
 
-CONTINUE ::= 'continue' [* char** label = ((char**)peek(&loop_stack));
-					 	   if (!label) {
-					 	       text_message(TEXT_ERROR, "use of 'continue' must be within a loop\n");
-					       } else {
-					 	       fprintf(fp, "\tgoto %s\n", (*label) + 1);
-					       }
-				        *].
-		 
-PRINT ::= 'print' '(' EXPR:val ')'
-		  [* fprintf(fp, "\tprint %s\n", val);
-		  *].
+CONTINUE ::= 
+'continue' 
+[* char** label = ((char**)peek(&loop_stack));
+   if (!label) {
+       text_message(TEXT_ERROR, "use of 'continue' must be within a loop\n");
+   } else {
+       fprintf(fp, "\tgoto %s\n", (*label) + 1);
+   }
+*].
 
-ASSIGN(name:char*) ::= 
+PRINT ::= 'print' '(' EXPR:val ')'[* fprintf(fp, "\tprint %s\n", val); *].
+
+ASSIGN(name:char*) ::=
+[* int array = 0; *] 
+[ '[' EXPR:index ']' [* array = 1; *] ]
 [   '=' EXPR:val 
 	[* void **chain = this_scope();
 	 void *key;
-	 while (chain) {
-		 if ((key = symbol_lookup_key(table, &name, *chain))) {
-			 if (table_cast(key)->type != INT) {
-				 text_message(TEXT_ERROR, "'%s' is not an integer\n", name);
+	 if (!array) {
+		 while (chain) {
+			 if ((key = symbol_lookup_key(table, &name, *chain))) {
+				 if (table_cast(key)->type != INT) {
+					 text_message(TEXT_ERROR, "'%s' is not an integer\n", name);
+				 }
+				 break;
 			 }
-			 break;
+			 chain = prev_scope(chain);
 		 }
-		 chain = prev_scope(chain);
-	 }
-	 if (!key) {
-		 text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+		 if (!key) {
+			 text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+		 } else {
+		 	 int offset = table_cast(key)->offset;
+		 	 if (offset) {
+				 fprintf(fp, "\t$fp(%d) = %s\n", offset, val);
+		 	 } else {
+		 	 	 fprintf(fp, "\t%s = %s\n", name, val);
+		 	 }
+		 }
 	 } else {
-	 	 int offset = table_cast(key)->offset;
-	 	 if (offset) {
-			 fprintf(fp, "\t$fp(%d) = %s\n", offset, val);
-	 	 } else {
-	 	 	 fprintf(fp, "\t%s = %s\n", name, val);
-	 	 }
+	     while (chain) {
+			 if ((key = symbol_lookup_key(table, &name, *chain))) {
+				 if (table_cast(key)->type != ARRAY) {
+					 text_message(TEXT_ERROR, "'%s' is not an array\n", name);
+				 }
+				 break;
+			 }
+			 chain = prev_scope(chain);
+		 }
+		 if (!key) {
+			 text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+		 } else {
+		 	 int offset = table_cast(key)->offset;
+		 	 if (offset) {
+		 		 fprintf(fp, "\t$fp(%d)[%s] = %s\n", offset, index, val);	 	
+		 	 } else {
+		 	 	 fprintf(fp, "\t%s[%s] = %s\n", name, index, val);
+		 	 }
+		 }	
 	 }
+	 
 	*] 
 ].
 
 EXPR:char*  ::= BOOL:result.
 
-BOOL:char* ::= SUM:val1 [* result = val1; *]
-			   { '==' SUM:val2
-			     [* result = new_temp();
-			        fprintf(fp, "\t%s = %s == %s\n", result, val1, val2);
-			        val1 = result;
-			     *]
-			   | '>=' SUM:val2
-			     [* result = new_temp();
-			        fprintf(fp, "\t%s = %s >= %s\n", result, val1, val2);
-			        val1 = result;
-			     *]
-			   | '>' SUM:val2 
-			   	 [* result = new_temp();
-			   	 	fprintf(fp, "\t%s = %s > %s\n", result, val1, val2);
-			   	 	val1 = result;
-			   	 *]
-			   | '<=' SUM:val2
-			   	 [* result = new_temp();
-			   	 	fprintf(fp, "\t%s = %s <= %s\n", result, val1, val2);
-			   	 	val1 = result;
-			   	 *]
-			   | '<' SUM:val2
-			   	 [* result = new_temp();
-			   	 	fprintf(fp, "\t%s = %s < %s\n", result, val1, val2);
-			   	 	val1 = result;
-			   	 *]
-			   | '!=' SUM:val2
-			   	 [* result = new_temp();
-			   	 	fprintf(fp, "\t%s = %s != %s\n", result, val1, val2);
-			   	 	val1 = result;
-			   	 *]
-			   }.
+BOOL:char* ::= 
+SUM:val1 [* result = val1; *]
+{ '==' SUM:val2
+  [* result = new_temp();
+     fprintf(fp, "\t%s = %s == %s\n", result, val1, val2);
+     val1 = result;
+  *]
+| '>=' SUM:val2
+  [* result = new_temp();
+     fprintf(fp, "\t%s = %s >= %s\n", result, val1, val2);
+     val1 = result;
+  *]
+| '>' SUM:val2 
+  [* result = new_temp();
+ 	 fprintf(fp, "\t%s = %s > %s\n", result, val1, val2);
+ 	 val1 = result;
+  *]
+| '<=' SUM:val2
+  [* result = new_temp();
+ 	 fprintf(fp, "\t%s = %s <= %s\n", result, val1, val2);
+ 	 val1 = result;
+  *]
+| '<' SUM:val2
+  [* result = new_temp();
+ 	 fprintf(fp, "\t%s = %s < %s\n", result, val1, val2);
+ 	 val1 = result;
+  *]
+| '!=' SUM:val2
+  [* result = new_temp();
+ 	 fprintf(fp, "\t%s = %s != %s\n", result, val1, val2);
+ 	 val1 = result;
+  *]
+}.
 
-SUM:char*   ::= PROD:val1 [* result = val1; *]
-				{ '+' PROD:val2
-				  [* result = new_temp();
-				  	 fprintf(fp, "\t%s = %s + %s\n", result, val1, val2);
-				  	 val1 = result;
-				  *]	     
-		      	| '-' PROD:val2 (* subtraction *)
-		          [* result = new_temp();
-		     	     fprintf(fp, "\t%s = %s - %s\n", result, val1, val2);
-		     	     val1 = result;
-		          *]
-		        }.
+SUM:char* ::= 
+PROD:val1 [* result = val1; *]
+{ '+' PROD:val2
+  [* result = new_temp();
+  	 fprintf(fp, "\t%s = %s + %s\n", result, val1, val2);
+  	 val1 = result;
+  *]	     
+| '-' PROD:val2 (* subtraction *)
+  [* result = new_temp();
+     fprintf(fp, "\t%s = %s - %s\n", result, val1, val2);
+     val1 = result;
+  *]
+}.
 
-PROD:char* ::= UNARY:val1 [* result = val1; *]
-			   { '*' UNARY:val2
-			     [* result = new_temp();
-			        fprintf(fp, "\t%s = %s * %s\n", result, val1, val2);
-			        val1 = result;
-			     *]
-			   |
-			     '/' UNARY:val2
-			     [* result = new_temp();
-			     	fprintf(fp, "\t%s = %s / %s\n", result, val1, val2);
-			     	val1 = result;
-			     *]
-			   |
-			     '%' UNARY:val2
-			     [* result = new_temp();
-			        fprintf(fp, "\t%s = %s %% %s\n", result, val1, val2);
-			        val1 = result;
-			     *]
-			   }.
+PROD:char* ::= 
+UNARY:val1 [* result = val1; *]
+{ '*' UNARY:val2
+ [* result = new_temp();
+    fprintf(fp, "\t%s = %s * %s\n", result, val1, val2);
+    val1 = result;
+ *]
+|
+ '/' UNARY:val2
+ [* result = new_temp();
+ 	fprintf(fp, "\t%s = %s / %s\n", result, val1, val2);
+ 	val1 = result;
+ *]
+|
+ '%' UNARY:val2
+ [* result = new_temp();
+    fprintf(fp, "\t%s = %s %% %s\n", result, val1, val2);
+    val1 = result;
+ *]
+}.
 				
-UNARY:char* ::= PRIMITIVE:val1 [* result = new_temp(); 
-							   	  fprintf(fp, "\t%s = %s\n", result, val1);
-							   	  val1 = result;
-							   *]
-			  | '(' EXPR:val1 [* result = val1; *] ')'.
+UNARY:char* ::= 
+PRIMITIVE:val1 
+[* result = new_temp(); 
+   fprintf(fp, "\t%s = %s\n", result, val1);
+   val1 = result;
+*]
+| '(' EXPR:val1 [* result = val1; *] ')'.
 							   
-PRIMITIVE:char*   ::= INTEGER:val (* integer literals *)
-					  [* result = (char*) mem_malloc(12);
-				   		 sprintf(result, "%li", val);
-					  *]
-			  		| [* int func = 0; *] 
-			  		  ID:name [ FUNC_CALL(name 1):call 
-			  		  			[* func = 1;
-			  		  			   result = call;
-			  		  			*] 
-			  		  		  ]
-			  		  [* if (!func) {
-				  		  	 void **chain = this_scope();
-						 	 void *key;
-						 	 while (chain) {
-						 	     if ((key = symbol_lookup_key(table, &name, *chain))) {
-						 		     if (table_cast(key)->type != INT) {
-						 			     text_message(TEXT_ERROR, "'%s' is not an integer\n", name);
-						 			 }
-						 		     break;
-						 		 }
-						 		 chain = prev_scope(chain);
-						 	 }
-						 	 if (!key) {
-						 		 text_message(TEXT_ERROR, "'%s' undeclared\n", name);
-						 	 } else {
-						 	 	 int offset = table_cast(key)->offset;
-						 	 	 if (offset) {
-						 	 	 	result = (char*) mem_malloc(15);
-						 	 	 	sprintf(result, "$fp(%d)", offset);
-						 	 	 } else {
-						 	 	 	result = name;
-						 	 	 }
-						 	 }
-					 	 }
-					  *]. 
+PRIMITIVE:char* ::= 
+  INTEGER:val (* integer literals *)
+  [* result = (char*) mem_malloc(12);
+	 sprintf(result, "%li", val);
+  *]
+| [* int func = 0, array = 0; *] 
+  ID:name 
+  [ FUNC_CALL(name 1):call 
+  	[* func = 1;
+  	   result = call; 
+  	*] 
+  | '[' EXPR:index
+    ']'
+    [* array = 1; *]
+  ]
+  [* if (!func) {
+  		 void **chain = this_scope();
+		 void *key;
+  	     if (!array) {
+		 	 while (chain) {
+		 	     if ((key = symbol_lookup_key(table, &name, *chain))) {
+		 		     if (table_cast(key)->type != INT) {
+		 			     text_message(TEXT_ERROR, "'%s' is not an integer\n", name);
+		 			 }
+		 		     break;
+		 		 }
+		 		 chain = prev_scope(chain);
+		 	 }
+		 	 if (!key) {
+		 		 text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+		 	 } else {
+		 	 	 int offset = table_cast(key)->offset;
+		 	 	 if (offset) {
+		 	 	 	result = (char*) mem_malloc(15);
+		 	 	 	sprintf(result, "$fp(%d)", offset);
+		 	 	 } else {
+		 	 	     result = name;
+		 	 	 }
+		 	 }
+	 	 } else {
+	 	     while (chain) {
+		 	     if ((key = symbol_lookup_key(table, &name, *chain))) {
+		 		     if (table_cast(key)->type != ARRAY) {
+		 			     text_message(TEXT_ERROR, "'%s' is not an array\n", name);
+		 			 }
+		 		     break;
+		 		 }
+		 		 chain = prev_scope(chain);
+		 	 }
+		 	 if (!key) {
+		 	 	text_message(TEXT_ERROR, "'%s' undeclared\n", name);
+		 	 } else {
+		 	 	int offset = table_cast(key)->offset;
+		 	 	if (offset) {
+		 	 		result = (char*) mem_malloc(30);
+		 	 	 	sprintf(result, "$fp(%d)[%s]", offset, index);
+		 	 	} else {
+		 	 		result = (char*) mem_malloc(strlen(name) + strlen(index) + 2);
+		 	 		sprintf(result, "%s[%s]", name, index);	
+		 	 	}
+		 	 }
+	 	 }
+ 	 }
+  *]. 
 			  		 			    		

@@ -19,6 +19,18 @@
 
 const int QUAD_SIZE = sizeof(quad) / sizeof(char*);
 
+int is_array(char *token) {
+	return token[strlen(token) - 1] == ']';
+}
+
+void isolate_index(quad *qd, char *target) {
+	char *left  = strchr(target, '[');
+	char *right = strchr(target, ']');
+	*right = '\0';
+	qd->arg2 = left + 1;
+	*left = '\0';
+}
+
 char* quad_fill(quad *qd, char *str) {
 	memset(qd, 0, sizeof(*qd));
 	char *pch = strtok(str, " \t");
@@ -33,6 +45,16 @@ char* quad_fill(quad *qd, char *str) {
 			qd->op     = strtok(NULL, " \t");
 			qd->arg1   = strtok(NULL, " \t");
 			
+			/* x[n] OR $fp(n)[m] = ??? */
+			if (is_array(qd->result)) {
+				isolate_index(qd, qd->result);
+			}
+			
+			/* _tn_ = x[n] OR $fp(n)[m] */
+			if (is_array(qd->arg1)) {
+				isolate_index(qd, qd->arg1);
+			}		
+					
 			/* _tn_ = call func */
 			if (!strcmp(qd->arg1, "call")) {
 				qd->arg2 = strtok(NULL, " \t");
@@ -45,6 +67,7 @@ char* quad_fill(quad *qd, char *str) {
 				qd->op   = pch;
 				qd->arg2 = strtok(NULL, " \t"); 
 			}
+			
 		} else {
 			/* unconditional jump / print statment / terminate / return */
 			qd->op = pch;

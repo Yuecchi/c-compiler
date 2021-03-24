@@ -3,7 +3,8 @@
 
 enum type {
 	INT = 1,
-	FUNC
+	FUNC,
+	ARRAY
 };
 
 #endif /* TYPE_H */

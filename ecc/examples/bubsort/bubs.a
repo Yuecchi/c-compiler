@@ -1,0 +1,130 @@
+	.data
+newline:	 .asciiz "\n"
+arr:	.word 7, 3, 5, 9, 1,
+	.text
+save_frame:
+	addi $sp, $sp, -44
+	sw $t0, 44($sp)
+	sw $t1, 40($sp)
+	sw $t2, 36($sp)
+	sw $t3, 32($sp)
+	sw $t4, 28($sp)
+	sw $t5, 24($sp)
+	sw $t6, 20($sp)
+	sw $t7, 16($sp)
+	sw $t8, 12($sp)
+	sw $t9, 8($sp)
+	sw $fp, 4($sp)
+	jr $ra
+load_frame:
+	lw $t0, 44($sp)
+	lw $t1, 40($sp)
+	lw $t2, 36($sp)
+	lw $t3, 32($sp)
+	lw $t4, 28($sp)
+	lw $t5, 24($sp)
+	lw $t6, 20($sp)
+	lw $t7, 16($sp)
+	lw $t8, 12($sp)
+	lw $t9, 8($sp)
+	lw $fp, 4($sp)
+	addi $sp, $sp, 44
+	jr $ra
+main:
+	move $fp, $sp
+	addi $sp, $sp, -20
+	li $t1, 5
+	sw $t1, -4($fp)
+	li $t2, 0
+	sw $t2, -8($fp)
+L1:
+	lw $t3, -8($fp)
+	lw $t4, -4($fp)
+	li $t5, 1
+	sub $t6, $t4, $t5
+	slt $t7, $t3, $t6
+	beqz $t7, L2
+	lw $t8, -8($fp)
+	li $t9, 1
+	add $t0, $t8, $t9
+	sw $t0, -12($fp)
+L3:
+	lw $t1, -12($fp)
+	lw $t2, -4($fp)
+	slt $t3, $t1, $t2
+	beqz $t3, L4
+	lw $t4, -12($fp)
+	la $a1, arr
+	sll $t4, $t4, 2
+	add $a1, $a1, $t4
+	lw $t5, ($a1)
+	lw $t6, -8($fp)
+	la $a3, arr
+	sll $t6, $t6, 2
+	add $a3, $a3, $t6
+	lw $t7, ($a3)
+	slt $t8, $t5, $t7
+	beqz $t8, L6
+	lw $t9, -8($fp)
+	la $a0, arr
+	sll $t9, $t9, 2
+	add $a0, $a0, $t9
+	lw $t0, ($a0)
+	sw $t0, -16($fp)
+	lw $t1, -8($fp)
+	lw $t2, -12($fp)
+	la $a3, arr
+	sll $t2, $t2, 2
+	add $a3, $a3, $t2
+	lw $t3, ($a3)
+	la $a3, arr
+	sll $t1, $t1, 2
+	add $a3, $a3, $t1
+	sw $t3, ($a3)
+	lw $t4, -12($fp)
+	lw $t5, -16($fp)
+	la $a1, arr
+	sll $t4, $t4, 2
+	add $a1, $a1, $t4
+	sw $t5, ($a1)
+	j L5
+L6:
+L5:
+	lw $t6, -12($fp)
+	li $t7, 1
+	add $t8, $t6, $t7
+	sw $t8, -12($fp)
+	j L3
+L4:
+	lw $t9, -8($fp)
+	li $t0, 1
+	add $t1, $t9, $t0
+	sw $t1, -8($fp)
+	j L1
+L2:
+	li $t2, 0
+	sw $t2, -8($fp)
+L7:
+	lw $t3, -8($fp)
+	lw $t4, -4($fp)
+	slt $t5, $t3, $t4
+	beqz $t5, L8
+	lw $t6, -8($fp)
+	la $a3, arr
+	sll $t6, $t6, 2
+	add $a3, $a3, $t6
+	lw $t7, ($a3)
+	move $a0, $t7
+	li $v0, 1
+	syscall
+	la $a0, newline
+	li $v0, 4
+	syscall
+	lw $t8, -8($fp)
+	li $t9, 1
+	add $t0, $t8, $t9
+	sw $t0, -8($fp)
+	j L7
+L8:
+	li $v0, 10
+	syscall

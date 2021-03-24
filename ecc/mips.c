@@ -22,14 +22,34 @@ int get_fp_offset(char* temp) {
 
 void mips_header(FILE *dst, FILE *src) {
 	char buf[32];
+	
+	// static (global) variables
 	fprintf(dst, "\t.data\n");
+	
+	// implicit newline constant
 	fprintf(dst, "newline:\t .asciiz \"\\n\"\n");
+	
+	
 	while (fgets(buf, sizeof buf, src)) {
+		buf[strlen(buf) - 1] = '\0';
 		char *token = strtok(buf, " ");
 		int type    = atoi(strtok(NULL, " "));
 		if (type == INT) {
 			int val = atoi(strtok(NULL, " "));
 			fprintf(dst, "%s:\t.word %i\n", token, val);	
+		} else if (type == ARRAY) {
+			fprintf(dst, "%s:\t.word", token);
+			int elements = atoi(strtok(NULL, " ")) / 4;
+			char *ele = strtok(NULL, " ");
+			for (int i = 0; i < elements; i += 1) {
+				if (ele) {
+					fprintf(dst, " %s,", ele);
+					ele = strtok(NULL, " ");
+				} else {
+					fprintf(dst, " 0,");
+				}
+			}
+			fprintf(dst,"\n");
 		}
 	}
 	fprintf(dst, "\t.text\n");
@@ -54,7 +74,7 @@ void mips_header(FILE *dst, FILE *src) {
 }
 
 void mips_assign(quad *qd, FILE *dst) {
-	int val_reg, adr_reg, offset;
+	int val_reg, adr_reg, idx_reg, offset;
 	if (is_temp(qd->result)) {
 		if (is_int(qd->arg1)) { /* $tn = INTEGER */
 			val_reg = get_val_reg(qd->result);
@@ -64,25 +84,57 @@ void mips_assign(quad *qd, FILE *dst) {
 			qd->arg1 = qd->arg2;
 			mips_call(qd, dst);	
 			fprintf(dst, "\tmove $t%i, $v1\n", val_reg); // assign return value
-		} else if (is_fp(qd->arg1)){ /* $tn = $fp(n) */
+		} else if (is_fp(qd->arg1)) { /* $tn = $fp(k) */
 			val_reg = get_val_reg(qd->result);
 			offset  = get_fp_offset(qd->arg1);
-			fprintf(dst, "\tlw $t%i, -%i($fp)\n", val_reg, offset);
+			if (qd->arg2) { /* _tn_ = $fp(k)[m] */
+				idx_reg = get_val_reg(qd->arg2);
+				// get position of element in stack
+				fprintf(dst, "\tsll $t%i, $t%i, 2\n", idx_reg, idx_reg);
+				fprintf(dst, "\taddi $t%i, $t%i, %i\n", idx_reg, idx_reg, offset);
+				// manipulate fp to locate element and load value
+				fprintf(dst, "\tmove $v0, $fp\n");
+				fprintf(dst, "\tsub $v0, $v0, $t%i\n", idx_reg);
+				fprintf(dst, "\tlw $t%i, ($v0)\n", val_reg);
+			} else {
+				fprintf(dst, "\tlw $t%i, -%i($fp)\n", val_reg, offset);
+			}
 		} else { /* _tn_ = x */
 			val_reg = get_val_reg(qd->result);
 			adr_reg = get_adr_reg(qd->result);
 			fprintf(dst, "\tla $a%i, %s\n", adr_reg, qd->arg1); // load address
+			if (qd->arg2) { /* _tn_ = x[m] */
+				idx_reg = get_val_reg(qd->arg2);
+				fprintf(dst, "\tsll $t%i, $t%i, 2\n", idx_reg, idx_reg);
+				fprintf(dst, "\tadd $a%i, $a%i, $t%i\n", adr_reg, adr_reg, idx_reg);
+			}
 			fprintf(dst, "\tlw $t%i, ($a%i)\n", val_reg, adr_reg); // load word
 		}
-	} else if (is_fp(qd->result)) { /* $fp(n) = $tn */
+	} else if (is_fp(qd->result)) { /* $fp(k) = _tn_ */
 		val_reg = get_val_reg(qd->arg1);
 		offset = get_fp_offset(qd->result);
-		fprintf(dst, "\tsw $t%i, -%i($fp)\n", val_reg, offset);
+		if (qd->arg2) { /* $fp(k)[m] = _tn_ */
+			idx_reg = get_val_reg(qd->arg2);
+			// get position of element in stack
+			fprintf(dst, "\tsll $t%i, $t%i, 2\n", idx_reg, idx_reg);
+			fprintf(dst, "\taddi $t%i, $t%i, %i\n", idx_reg, idx_reg, offset);
+			// manipulate fp to locate element and store value
+			fprintf(dst, "\tmove $v0, $fp\n");
+			fprintf(dst, "\tsub $v0, $v0, $t%i\n", idx_reg);
+			fprintf(dst, "\tsw $t%i, ($v0)\n", val_reg);
+		} else {
+			fprintf(dst, "\tsw $t%i, -%i($fp)\n", val_reg, offset);
+		}
 	} else { /* x = _tn_ */
 		val_reg = get_val_reg(qd->arg1);
 		adr_reg = get_adr_reg(qd->arg1);
 		fprintf(dst, "\tla $a%i, %s\n", adr_reg, qd->result); // load address
-		fprintf(dst, "\tsw $t%i, ($a%i)\n", val_reg, adr_reg); // load word
+		if (qd->arg2) { /* x[m] = _tn_ */
+			idx_reg = get_val_reg(qd->arg2);
+			fprintf(dst, "\tsll $t%i, $t%i, 2\n", idx_reg, idx_reg);
+			fprintf(dst, "\tadd $a%i, $a%i, $t%i\n", adr_reg, adr_reg, idx_reg);
+		}
+		fprintf(dst, "\tsw $t%i, ($a%i)\n", val_reg, adr_reg); // store word
 	}
 }
 

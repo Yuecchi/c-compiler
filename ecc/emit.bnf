@@ -1,0 +1,31 @@
+USES("stdlib.h")
+USES("ma_aux.h")
+
+(* Start Symbol *)
+S ::= [* fp = fopen("emit.tac", "w"); *]
+ 	  { A }
+ 	  [* fclose(fp); *].
+
+(* Assignment *)
+A ::= ID:name '=' E:val 
+	  [*  fprintf(fp, "\t%s = %s\n", name, val); *].
+
+(* Addition Expressions *)
+E:char* ::= P:val1 [* result = val1; *]
+		    {   
+		        '+' P:val2
+		        [*
+		            result = new_temp();
+		            fprintf(fp, "\t%s = %s + %s\n", result, val1, val2);
+		            val1 = result;
+		        *] 
+		    }.
+
+(* Primitives *)
+P:char* ::= ID:result
+		  | INTEGER:val
+		    [* 
+		        result = (char*) mem_malloc(12);
+		        sprintf(result, "%li", val);
+		    *]. 
+
