@@ -1,6 +1,0 @@
-int func(int x, int y, int z) {}
-
-int main() {
-	func(3, 4, 5);
-}
-
