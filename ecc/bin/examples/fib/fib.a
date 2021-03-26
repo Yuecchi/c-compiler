@@ -1,5 +1,6 @@
 	.data
 newline:	 .asciiz "\n"
+x:	.word 0
 	.text
 save_frame:
 	addi $sp, $sp, -44
