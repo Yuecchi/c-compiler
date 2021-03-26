@@ -1,0 +1,1 @@
+Calculates the of sum integers from one to one hundred. This demonstrates the use of both local and global variables and how programs can use duplicate identifiers, provided they are separated by scope. Additionally, global variables now have their initial values assigned at compile time,  An issue which initially occurred after adding functions.
